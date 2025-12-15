@@ -1,0 +1,21 @@
+{
+  "total": 1617,
+  "with_datetime": 1614,
+  "with_location": 1612,
+  "with_movement": 1059,
+  "with_windspeed": 1607,
+  "with_signals": 234,
+  "with_rainfall": 1451,
+  "signal_coverage": {
+    "1": 107,
+    "2": 70,
+    "3": 43,
+    "4": 14,
+    "5": 0
+  },
+  "rainfall_coverage": {
+    "1": 2,
+    "2": 1449,
+    "3": 0
+  }
+}

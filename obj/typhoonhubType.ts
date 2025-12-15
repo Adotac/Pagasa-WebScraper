@@ -1,7 +1,8 @@
 type IslandGroupType = {
     Luzon: string | null,
     Visayas: string | null,
-    Mindanao: string | null
+    Mindanao: string | null,
+    Other: string | null
 } 
 
 type TyphoonHubType = {
