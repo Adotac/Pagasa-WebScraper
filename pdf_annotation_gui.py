@@ -114,7 +114,7 @@ class PDFViewer(tk.Frame):
         tk.Button(nav_frame, text="📋 Copy Selected", command=self.copy_selected_text, width=12).pack(side=tk.LEFT, padx=2)
         tk.Label(nav_frame, text="(or Ctrl+C)", font=("Arial", 8), fg="gray").pack(side=tk.LEFT)
     
-    def load_pdf(self, pdf_path: str):
+    def load_pdf(self, pdf_path: str, zoom_level: float = 1.0):
         """Load a PDF file and display the first page"""
         try:
             # Close previous PDF if any
@@ -126,7 +126,7 @@ class PDFViewer(tk.Frame):
             self.current_pdf_path = pdf_path
             self.total_pages = len(self.current_pdf)
             self.current_page = 0
-            self.zoom_level = 1.0  # Reset zoom
+            self.zoom_level = zoom_level  # Use provided zoom level
             
             self.render_page()
             
@@ -222,6 +222,10 @@ class PDFViewer(tk.Frame):
         """Reset zoom to 100%"""
         self.zoom_level = 1.0
         self.render_page()
+    
+    def get_zoom_level(self):
+        """Get current zoom level"""
+        return self.zoom_level
     
     def on_canvas_click(self, event):
         """Handle mouse click on canvas - start text selection"""
@@ -406,6 +410,8 @@ class PDFAnnotationApp:
         self.extractor = None
         self.is_processing = False
         self.pdf_folder = None
+        self.saved_zoom_level = 1.0  # Remember zoom level across PDFs
+        self.auto_analyze_next = tk.BooleanVar(value=False)  # Auto-analyze checkbox state
         
         # Setup UI
         self.setup_ui()
@@ -463,7 +469,7 @@ class PDFAnnotationApp:
         paned_window.add(right_frame, minsize=400)
         
         # Bottom bar with navigation buttons
-        bottom_frame = tk.Frame(self.root, bg="#ecf0f1", height=60)
+        bottom_frame = tk.Frame(self.root, bg="#ecf0f1", height=80)  # Increased from 60 to 80
         bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
         bottom_frame.pack_propagate(False)
         
@@ -482,6 +488,19 @@ class PDFAnnotationApp:
             length=200
         )
         
+        # Auto-analyze checkbox
+        checkbox_frame = tk.Frame(bottom_frame, bg="#ecf0f1")
+        checkbox_frame.pack(side=tk.TOP, pady=(2, 5))
+        
+        self.auto_analyze_checkbox = tk.Checkbutton(
+            checkbox_frame,
+            text="Auto-analyze next PDF after Save & Next",
+            variable=self.auto_analyze_next,
+            font=("Arial", 9),
+            bg="#ecf0f1"
+        )
+        self.auto_analyze_checkbox.pack()
+        
         # Navigation buttons
         button_frame = tk.Frame(bottom_frame, bg="#ecf0f1")
         button_frame.pack(side=tk.BOTTOM, pady=10)
@@ -491,6 +510,7 @@ class PDFAnnotationApp:
             text="📁 Select Folder",
             command=self.select_folder,
             width=13,
+            height=2,  # Added height
             font=("Arial", 10),
             bg="#95a5a6",
             fg="white"
@@ -501,6 +521,7 @@ class PDFAnnotationApp:
             text="◀ Previous",
             command=self.prev_file,
             width=12,
+            height=2,  # Added height
             font=("Arial", 10)
         )
         self.prev_button.pack(side=tk.LEFT, padx=5)
@@ -510,6 +531,7 @@ class PDFAnnotationApp:
             text="🔍 Analyze",
             command=self.analyze_current,
             width=12,
+            height=2,  # Added height
             font=("Arial", 10, "bold"),
             bg="#e67e22",
             fg="white"
@@ -521,6 +543,7 @@ class PDFAnnotationApp:
             text="💾 Save & Next",
             command=self.save_and_next,
             width=15,
+            height=2,  # Added height
             font=("Arial", 10, "bold"),
             bg="#3498db",
             fg="white"
@@ -532,6 +555,7 @@ class PDFAnnotationApp:
             text="Next ▶",
             command=self.next_file,
             width=12,
+            height=2,  # Added height
             font=("Arial", 10)
         )
         self.next_button.pack(side=tk.LEFT, padx=5)
@@ -541,6 +565,7 @@ class PDFAnnotationApp:
             text="❌ Quit",
             command=self.quit_app,
             width=10,
+            height=2,  # Added height
             font=("Arial", 10)
         ).pack(side=tk.LEFT, padx=20)
     
@@ -627,11 +652,16 @@ class PDFAnnotationApp:
             return
         
         try:
+            # Save current zoom level before loading new PDF
+            if hasattr(self, 'pdf_viewer') and hasattr(self.pdf_viewer, 'get_zoom_level'):
+                self.saved_zoom_level = self.pdf_viewer.get_zoom_level()
+            
             current_file = self.pdf_files[self.current_index]
             
             # Update UI
             self.update_file_counter()
-            self.pdf_viewer.load_pdf(str(current_file))
+            # Load PDF with saved zoom level
+            self.pdf_viewer.load_pdf(str(current_file), self.saved_zoom_level)
             
             # Check if annotation already exists
             annotation_path = self.get_annotation_path(current_file)
@@ -799,6 +829,11 @@ class PDFAnnotationApp:
             if self.current_index < len(self.pdf_files) - 1:
                 self.current_index += 1
                 self.load_current_pdf()
+                
+                # Auto-analyze if checkbox is checked
+                if self.auto_analyze_next.get():
+                    # Schedule analysis after a short delay to let UI update
+                    self.root.after(100, self.analyze_current)
             else:
                 messagebox.showinfo("Complete", "All files processed!")
     
