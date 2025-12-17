@@ -288,7 +288,6 @@ class LocationMatcher:
         Extract all mentioned locations including regions and classify by island group.
         Regions are captured for proper mapping to island groups.
         Only returns the highest-priority version of each location name.
-        
         Uses parse_location_text_with_rules internally for rule-based parsing,
         then falls back to pattern matching for any remaining unmatched locations.
         """
@@ -369,11 +368,15 @@ class LocationMatcher:
                     found_locations[region_lower] = (target_island_group, region_name)
         
         # Merge pattern-matched locations with parsed entities
+        # Use sets for efficient duplicate checking
+        island_groups_sets = {k: set(v) for k, v in island_groups.items()}
+        
         for location_lower, (island_group, original_name) in found_locations.items():
-            if island_group in island_groups:
-                # Avoid duplicates
-                if original_name not in island_groups[island_group]:
-                    island_groups[island_group].append(original_name)
+            if island_group in island_groups_sets:
+                island_groups_sets[island_group].add(original_name)
+        
+        # Convert sets back to lists
+        island_groups = {k: list(v) for k, v in island_groups_sets.items()}
         
         # Remove empty categories and return
         result = {k: v for k, v in island_groups.items() if v}
