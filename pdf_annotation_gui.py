@@ -57,6 +57,13 @@ class PDFViewer(tk.Frame):
         self.total_pages = 0
         self.zoom_level = 1.0  # Default zoom level
         
+        # Text selection state
+        self.text_chars = []  # List of character data with positions
+        self.selected_text = ""
+        self.selection_start = None
+        self.selection_rect = None
+        self.text_overlay_items = []  # Canvas items for text overlay
+        
         # Create canvas for PDF display with scrollbar
         self.canvas_frame = tk.Frame(self)
         self.canvas_frame.pack(fill=tk.BOTH, expand=True)
@@ -82,8 +89,7 @@ class PDFViewer(tk.Frame):
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.canvas.bind("<B1-Motion>", self.on_canvas_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
-        self.selection_rect = None
-        self.selection_start = None
+        self.canvas.bind("<Control-c>", lambda e: self.copy_selected_text())
         
         # Page navigation and zoom controls
         nav_frame = tk.Frame(self)
@@ -103,9 +109,10 @@ class PDFViewer(tk.Frame):
         tk.Button(nav_frame, text="🔍+", command=self.zoom_in, width=3).pack(side=tk.LEFT, padx=2)
         tk.Button(nav_frame, text="Reset", command=self.zoom_reset, width=5).pack(side=tk.LEFT, padx=2)
         
-        # Copy text button
+        # Copy selected text button
         tk.Label(nav_frame, text="|").pack(side=tk.LEFT, padx=5)
-        tk.Button(nav_frame, text="📋 Copy Text", command=self.copy_page_text, width=10).pack(side=tk.LEFT, padx=2)
+        tk.Button(nav_frame, text="📋 Copy Selected", command=self.copy_selected_text, width=12).pack(side=tk.LEFT, padx=2)
+        tk.Label(nav_frame, text="(or Ctrl+C)", font=("Arial", 8), fg="gray").pack(side=tk.LEFT)
     
     def load_pdf(self, pdf_path: str):
         """Load a PDF file and display the first page"""
@@ -131,7 +138,7 @@ class PDFViewer(tk.Frame):
             self.current_page = 0
     
     def render_page(self):
-        """Render the current page to canvas"""
+        """Render the current page to canvas with text overlay"""
         if not self.current_pdf or self.total_pages == 0:
             self.canvas.delete("all")
             self.page_label.config(text="Page 0 of 0")
@@ -151,7 +158,11 @@ class PDFViewer(tk.Frame):
             
             # Clear canvas and display
             self.canvas.delete("all")
+            self.text_overlay_items = []
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
+            
+            # Extract text with coordinates for selection
+            self.extract_text_with_coordinates()
             
             # Update scroll region
             self.canvas.config(scrollregion=self.canvas.bbox("all"))
@@ -162,6 +173,38 @@ class PDFViewer(tk.Frame):
             
         except Exception as e:
             messagebox.showerror("Render Error", f"Failed to render page:\n{e}")
+    
+    def extract_text_with_coordinates(self):
+        """Extract text with character-level coordinates from PDF"""
+        if not self.current_pdf_path:
+            return
+        
+        try:
+            with pdfplumber.open(self.current_pdf_path) as pdf:
+                if self.current_page < len(pdf.pages):
+                    page = pdf.pages[self.current_page]
+                    
+                    # Extract characters with their bounding boxes
+                    chars = page.chars
+                    
+                    # Store character data scaled to match zoom level
+                    self.text_chars = []
+                    scale = 2 * self.zoom_level  # Match the render scale
+                    
+                    for char in chars:
+                        char_data = {
+                            'text': char['text'],
+                            'x0': char['x0'] * scale,
+                            'y0': char['top'] * scale,
+                            'x1': char['x1'] * scale,
+                            'y1': char['bottom'] * scale,
+                            'width': (char['x1'] - char['x0']) * scale,
+                            'height': (char['bottom'] - char['top']) * scale
+                        }
+                        self.text_chars.append(char_data)
+        except Exception as e:
+            # Silent fail - text selection won't work but PDF will still display
+            self.text_chars = []
     
     def zoom_in(self):
         """Zoom in"""
@@ -181,52 +224,97 @@ class PDFViewer(tk.Frame):
         self.render_page()
     
     def on_canvas_click(self, event):
-        """Handle mouse click on canvas"""
+        """Handle mouse click on canvas - start text selection"""
         self.selection_start = (event.x, event.y)
         if self.selection_rect:
             self.canvas.delete(self.selection_rect)
         self.selection_rect = None
+        self.selected_text = ""
     
     def on_canvas_drag(self, event):
-        """Handle mouse drag on canvas"""
+        """Handle mouse drag on canvas - show selection rectangle"""
         if self.selection_start:
             x0, y0 = self.selection_start
             x1, y1 = event.x, event.y
+            
+            # Ensure proper rectangle coordinates
+            left = min(x0, x1)
+            top = min(y0, y1)
+            right = max(x0, x1)
+            bottom = max(y0, y1)
+            
             if self.selection_rect:
                 self.canvas.delete(self.selection_rect)
+            
             self.selection_rect = self.canvas.create_rectangle(
-                x0, y0, x1, y1,
-                outline="blue", width=2, dash=(4, 4)
+                left, top, right, bottom,
+                outline="blue", fill="lightblue", stipple="gray50", width=2
             )
     
     def on_canvas_release(self, event):
-        """Handle mouse release on canvas"""
+        """Handle mouse release on canvas - select text in rectangle"""
+        if self.selection_start and self.selection_rect:
+            x0, y0 = self.selection_start
+            x1, y1 = event.x, event.y
+            
+            # Ensure proper rectangle coordinates
+            sel_left = min(x0, x1)
+            sel_top = min(y0, y1)
+            sel_right = max(x0, x1)
+            sel_bottom = max(y0, y1)
+            
+            # Find all characters within the selection rectangle
+            selected_chars = []
+            for char in self.text_chars:
+                # Check if character intersects with selection rectangle
+                char_left = char['x0']
+                char_top = char['y0']
+                char_right = char['x1']
+                char_bottom = char['y1']
+                
+                # Check for intersection
+                if not (char_right < sel_left or char_left > sel_right or
+                        char_bottom < sel_top or char_top > sel_bottom):
+                    selected_chars.append(char)
+            
+            # Sort characters by position (top to bottom, left to right)
+            selected_chars.sort(key=lambda c: (c['y0'], c['x0']))
+            
+            # Build selected text
+            self.selected_text = ''.join(c['text'] for c in selected_chars)
+            
+            # Show visual feedback if text was selected
+            if self.selected_text:
+                # Keep selection rectangle visible briefly
+                self.canvas.itemconfig(self.selection_rect, outline="green", width=3)
+                self.after(300, lambda: self._clear_selection_rect())
+            else:
+                self._clear_selection_rect()
+        else:
+            self._clear_selection_rect()
+        
+        self.selection_start = None
+    
+    def _clear_selection_rect(self):
+        """Clear the selection rectangle"""
         if self.selection_rect:
             self.canvas.delete(self.selection_rect)
         self.selection_rect = None
-        self.selection_start = None
     
-    def copy_page_text(self):
-        """Extract and copy text from current page"""
-        if not self.current_pdf_path:
-            messagebox.showinfo("No PDF", "No PDF loaded")
-            return
-        
-        try:
-            with pdfplumber.open(self.current_pdf_path) as pdf:
-                if self.current_page < len(pdf.pages):
-                    page = pdf.pages[self.current_page]
-                    text = page.extract_text()
-                    
-                    if text:
-                        # Copy to clipboard
-                        self.clipboard_clear()
-                        self.clipboard_append(text)
-                        messagebox.showinfo("Text Copied", f"Copied {len(text)} characters to clipboard")
-                    else:
-                        messagebox.showinfo("No Text", "No text found on this page")
-        except Exception as e:
-            messagebox.showerror("Text Extract Error", f"Failed to extract text:\n{e}")
+    def copy_selected_text(self):
+        """Copy the currently selected text to clipboard"""
+        if self.selected_text:
+            try:
+                self.clipboard_clear()
+                self.clipboard_append(self.selected_text)
+                # Show brief message
+                messagebox.showinfo("Text Copied", 
+                    f"Copied {len(self.selected_text)} characters:\n\n{self.selected_text[:100]}{'...' if len(self.selected_text) > 100 else ''}")
+            except Exception as e:
+                messagebox.showerror("Copy Error", f"Failed to copy text:\n{e}")
+        else:
+            messagebox.showinfo("No Selection", "No text selected. Drag to select text first.")
+    
     
     def next_page(self):
         """Go to next page"""
