@@ -250,10 +250,15 @@ class PDFViewer(tk.Frame):
             if self.selection_rect:
                 self.canvas.delete(self.selection_rect)
             
+            # Create selection rectangle with dashed outline for visibility
+            # Use tag to ensure it stays on top
             self.selection_rect = self.canvas.create_rectangle(
                 left, top, right, bottom,
-                outline="blue", fill="lightblue", stipple="gray50", width=2
+                outline="blue", width=2, dash=(4, 4),
+                tags="selection"
             )
+            # Raise the selection rectangle to ensure it's visible above the image
+            self.canvas.tag_raise("selection")
     
     def on_canvas_release(self, event):
         """Handle mouse release on canvas - select text in rectangle"""
