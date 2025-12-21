@@ -85,6 +85,76 @@ python analyze_pdf.py --random --low-cpu --metrics --json
 - CPU usage: 97% (normal mode) or ~30% (low CPU mode)
 - Memory usage: 90-110 MB
 
+### Test extraction accuracy:
+The `test_accuracy.py` script validates the accuracy of PDF data extraction by comparing extracted data against ground truth annotations.
+
+**Basic usage:**
+```powershell
+# Auto-test all annotations in dataset/pdfs_annotation/
+python test_accuracy.py
+
+# Test specific bulletin
+python test_accuracy.py "PAGASA_22-TC08_Henry_TCA"
+
+# Test single annotation file
+python test_accuracy.py "PAGASA_22-TC08_Henry_TCA#01"
+```
+
+**Optional flags:**
+```powershell
+# Show field-by-field detailed results
+python test_accuracy.py --detailed
+
+# Show verbose output with all test results
+python test_accuracy.py --verbose
+
+# Combine flags
+python test_accuracy.py --detailed --verbose
+```
+
+**Features:**
+- ✓ Automatically matches annotation files with corresponding PDFs
+- ✓ Tests all 12 fields in annotations (4 simple + 8 nested dict fields)
+- ✓ Compares: location, movement, windspeed, datetime, and signal/rainfall warning tags
+- ✓ Shows accuracy percentage for each test
+- ✓ Provides both test-level and field-level accuracy metrics
+- ✓ Pass/Warn/Fail status based on realistic accuracy thresholds:
+  - **PASS**: 65%+ accuracy
+  - **WARN**: 58-65% accuracy
+  - **FAIL**: <58% accuracy
+
+**Example output:**
+```
+Testing bulletin: PAGASA_22-TC08_Henry_TCA
+
+Found 5 annotation file(s)
+
+PASS - PAGASA_22-TC08_Henry_TCA#01.json (75.0%)
+  9/12 fields matched
+PASS - PAGASA_22-TC08_Henry_TCA#02.json (75.0%)
+  9/12 fields matched
+PASS - PAGASA_22-TC08_Henry_TCA#03.json (75.0%)
+  9/12 fields matched
+PASS - PAGASA_22-TC08_Henry_TCA#04.json (75.0%)
+  9/12 fields matched
+PASS - PAGASA_22-TC08_Henry_TCA#05.json (75.0%)
+  9/12 fields matched
+
+================================================================================
+[ACCURACY TEST SUMMARY]
+================================================================================
+Total tests:       5
+Passed:            5
+Warnings:          0
+Failed:            0
+Errors:            0
+
+Pass rate:         100.0%
+
+Field accuracy:    75.0%
+Fields matched:    45/60
+================================================================================
+```
 
 ## Last terminal command
 The terminal ran: powershell .venv\Scripts\Activate.ps1 (working directory: C:\_Files\Code_Files\Pagasa WebScraper)
