@@ -485,7 +485,7 @@ class PDFAnnotationApp:
         paned_window.add(right_frame, minsize=400)
         
         # Bottom bar with navigation buttons
-        bottom_frame = tk.Frame(self.root, bg="#ecf0f1", height=80)  # Increased from 60 to 80
+        bottom_frame = tk.Frame(self.root, bg="#ecf0f1", height=110)  # Increased from 60 to 80
         bottom_frame.pack(side=tk.BOTTOM, fill=tk.X)
         bottom_frame.pack_propagate(False)
         
