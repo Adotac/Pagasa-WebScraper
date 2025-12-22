@@ -1,96 +1,137 @@
-# Pagasa-WebScraper
-POC for client requirement
+# Pagasa WebScraper
 
-## Setup
+High-accuracy PAGASA typhoon bulletin PDF extraction and annotation tool. Extracts signal warnings, rainfall alerts, typhoon location, movement, and wind speed with 94.2% accuracy.
 
-1. Create virtual environment:
+## Quick Start
+
+### 1. Setup Virtual Environment (REQUIRED)
+
+**Windows:**
 ```powershell
 python -m venv .venv
-```
-
-2. Activate virtual environment:
-```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-3. Install dependencies:
+**Linux/macOS:**
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+### 2. Install Dependencies
+
 ```powershell
 pip install -r requirements.txt
 ```
 
-4. Verify installation:
+### 3. Verify Installation
+
 ```powershell
 python verify_install.py
 ```
 
-## Running Scripts
+---
 
-### Extract data:
+## Scripts & Usage
+
+### 1. Analyze Single PDF: `analyze_pdf.py`
+
+Analyze individual PAGASA PDF bulletins with accurate data extraction.
+
+**Basic Usage:**
 ```powershell
-python data_extractor.py
-```
+# Specific PDF file
+python analyze_pdf.py "dataset/pdfs/pagasa-22-TC08/PAGASA_22-TC08_Henry_TCA#01.pdf"
 
-### Parse tables:
-```powershell
-python table_parser.py
-```
-
-### Run the ML pipeline:
-```powershell
-python ml_pipeline.py
-```
-
-### Analyze a single PDF bulletin:
-The `analyze_pdf.py` script provides an easy way to analyze individual PAGASA PDF bulletins with accurate data extraction.
-
-**Basic usage:**
-```powershell
-# Analyze specific PDF file
-python analyze_pdf.py "dataset/pdfs/pagasa-20-19W/PAGASA_20-19W_Pepito_SWB#02.pdf"
-
-# Analyze random PDF from dataset
+# Random PDF from dataset
 python analyze_pdf.py --random
 
-# Analyze PDF from URL
+# PDF from URL
 python analyze_pdf.py "https://example.com/bulletin.pdf"
 ```
 
-**Optional flags:**
+**Arguments:**
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `<path>` | string | PDF file path or URL |
+| `--random` | flag | Select random PDF from dataset |
+| `--metrics` | flag | Show CPU, memory, and execution time metrics |
+| `--low-cpu` | flag | Limit CPU usage to ~30% (good for background processing) |
+| `--json` | flag | Output raw JSON data only |
+
+**Examples:**
 ```powershell
-# Show performance metrics (CPU, memory, execution time)
+# Show performance metrics
 python analyze_pdf.py --random --metrics
 
-# Low CPU mode - limits CPU usage to ~30% (good for background processing)
-python analyze_pdf.py --random --low-cpu
+# Low CPU mode for background use
+python analyze_pdf.py "path/to/file.pdf" --low-cpu
 
-# Output raw JSON data
+# Get JSON output
 python analyze_pdf.py --random --json
 
 # Combine flags
-python analyze_pdf.py --random --low-cpu --metrics --json
+python analyze_pdf.py --random --low-cpu --metrics
 ```
 
 **Features:**
-- ✓ Extracts signal warnings (TCWS 1-5) by island group
+- ✓ Extracts TCWS signal warnings (1-5) by island group (Luzon, Visayas, Mindanao)
 - ✓ Extracts rainfall warnings (3 levels) with affected locations
-- ✓ Shows datetime issued, wind speed, and movement information
-- ✓ Automatic PDF safety checks (structure validation, suspicious feature detection)
-- ✓ Optional performance metrics (CPU usage, memory, processing time)
-- ✓ Low CPU mode for background processing
+- ✓ Extracts datetime issued, wind speed, and movement
+- ✓ Automatic PDF safety checks
+- ✓ Optional performance metrics (CPU, memory, time)
 - ✓ Support for local files and remote URLs
-- ✓ 90%+ accuracy on data extraction
 
 **Performance (typical):**
-- Average execution time: 5-7 seconds per PDF
-- CPU usage: 97% (normal mode) or ~30% (low CPU mode)
-- Memory usage: 90-110 MB
+- Execution time: 5-7 seconds per PDF
+- CPU usage: 97% (normal) or ~30% (low-CPU mode)
+- Memory: 90-110 MB
 
-### Test extraction accuracy:
-The `test_accuracy.py` script validates the accuracy of PDF data extraction by comparing extracted data against ground truth annotations.
+---
 
-**Basic usage:**
+### 2. Batch Process All PDFs: `typhoon_extraction_ml.py`
+
+Extract data from all PDFs in the dataset directory.
+
+**Basic Usage:**
 ```powershell
-# Auto-test all annotations in dataset/pdfs_annotation/
+python typhoon_extraction_ml.py
+```
+
+**Arguments:**
+
+| Argument | Type | Description | Default |
+|----------|------|-------------|---------|
+| `<directory>` | string | Path to directory with PDFs | `dataset/pdfs` |
+| `--output` | string | JSON file to save results | `bin/extracted_typhoon_data.json` |
+
+**Examples:**
+```powershell
+# Process all PDFs in dataset/pdfs/ (default)
+python typhoon_extraction_ml.py
+
+# Process custom directory
+python typhoon_extraction_ml.py "path/to/pdfs"
+
+# Specify output file
+python typhoon_extraction_ml.py "dataset/pdfs" --output "results.json"
+```
+
+**Output:**
+- Generates JSON file with extracted data from all PDFs
+- Each entry includes: source file, location, movement, wind speed, datetime, and all warning tags
+- Summary: total extracted bulletins, success count
+
+---
+
+### 3. Test Extraction Accuracy: `test_accuracy.py`
+
+Validate extraction accuracy by comparing against ground truth annotations.
+
+**Basic Usage:**
+```powershell
+# Test all annotations
 python test_accuracy.py
 
 # Test specific bulletin
@@ -100,61 +141,129 @@ python test_accuracy.py "PAGASA_22-TC08_Henry_TCA"
 python test_accuracy.py "PAGASA_22-TC08_Henry_TCA#01"
 ```
 
-**Optional flags:**
+**Arguments:**
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `<bulletin>` | string | Bulletin name or annotation file to test |
+| `--detailed` | flag | Show field-by-field results |
+| `--verbose` | flag | Show all test results (including passes) |
+| `--metrics` | flag | Show detailed accuracy metrics |
+
+**Examples:**
 ```powershell
-# Show field-by-field detailed results
+# Detailed field results
 python test_accuracy.py --detailed
 
-# Show verbose output with all test results
-python test_accuracy.py --verbose
+# Show everything
+python test_accuracy.py "PAGASA_22-TC08_Henry_TCA" --verbose
 
-# Combine flags
-python test_accuracy.py --detailed --verbose
+# Combined
+python test_accuracy.py --detailed --metrics
 ```
 
 **Features:**
-- ✓ Automatically matches annotation files with corresponding PDFs
-- ✓ Tests all 12 fields in annotations (4 simple + 8 nested dict fields)
-- ✓ Compares: location, movement, windspeed, datetime, and signal/rainfall warning tags
-- ✓ Shows accuracy percentage for each test
-- ✓ Provides both test-level and field-level accuracy metrics
-- ✓ Pass/Warn/Fail status based on realistic accuracy thresholds:
-  - **PASS**: 65%+ accuracy
-  - **WARN**: 58-65% accuracy
-  - **FAIL**: <58% accuracy
+- ✓ Auto-matches annotations with PDFs
+- ✓ Tests all 12 fields: location, movement, wind speed, datetime, signal tags (1-5), rainfall tags (1-3)
+- ✓ Accuracy thresholds: PASS (≥65%), WARN (58-65%), FAIL (<58%)
+- ✓ Field-level and test-level metrics
 
-**Example output:**
-```
-Testing bulletin: PAGASA_22-TC08_Henry_TCA
+---
 
-Found 5 annotation file(s)
+### 4. PDF Annotation GUI: `pdf_annotation_gui.py`
 
-PASS - PAGASA_22-TC08_Henry_TCA#01.json (75.0%)
-  9/12 fields matched
-PASS - PAGASA_22-TC08_Henry_TCA#02.json (75.0%)
-  9/12 fields matched
-PASS - PAGASA_22-TC08_Henry_TCA#03.json (75.0%)
-  9/12 fields matched
-PASS - PAGASA_22-TC08_Henry_TCA#04.json (75.0%)
-  9/12 fields matched
-PASS - PAGASA_22-TC08_Henry_TCA#05.json (75.0%)
-  9/12 fields matched
+Interactive GUI for manually annotating PDFs with extracted JSON data.
 
-================================================================================
-[ACCURACY TEST SUMMARY]
-================================================================================
-Total tests:       5
-Passed:            5
-Warnings:          0
-Failed:            0
-Errors:            0
-
-Pass rate:         100.0%
-
-Field accuracy:    75.0%
-Fields matched:    45/60
-================================================================================
+**Basic Usage:**
+```powershell
+python pdf_annotation_gui.py
 ```
 
-## Last terminal command
-The terminal ran: powershell .venv\Scripts\Activate.ps1 (working directory: C:\_Files\Code_Files\Pagasa WebScraper)
+**Features:**
+- Split-view interface: PDF viewer (left) + JSON editor (right)
+- Automatic PDF discovery from `dataset/pdfs/`
+- Auto-extraction using TyphoonBulletinExtractor
+- Real-time JSON validation
+- Navigation: Previous, Next, Save & Next buttons
+- Saves annotations to `dataset/pdfs_annotation/`
+
+See [GUI_DOCUMENTATION.md](GUI_DOCUMENTATION.md) for detailed GUI features and architecture.
+
+---
+
+## Project Structure
+
+```
+dataset/
+├── pdfs/                    # Source PDF bulletins
+│   └── pagasa-YY-TC##/
+│       └── PAGASA_YY-TC##_Name_TCTYPE#NUM.pdf
+├── pdfs_annotation/         # Ground truth annotations
+│   └── pagasa-YY-TC##/
+│       └── PAGASA_YY-TC##_Name_TCTYPE#NUM.json
+└── psgc_csv/               # Philippine administrative divisions
+
+bin/
+├── consolidated_locations.csv       # 43,761 location mappings
+└── extracted_typhoon_data.json      # Batch extraction output
+
+typhoon_extraction_ml.py             # Main extraction engine
+analyze_pdf.py                       # Single PDF analysis tool
+test_accuracy.py                     # Accuracy validation
+pdf_annotation_gui.py                # Annotation GUI
+verify_install.py                    # Installation verifier
+requirements.txt                     # Python dependencies
+```
+
+---
+
+## Extraction Accuracy
+
+Current accuracy: **94.2%** (441/468 fields matched)
+
+Tested on 39 typhoon bulletins across different formats:
+- Henry (100% accuracy)
+- Uwan TCA (91.7% accuracy)  
+- Uwan TCB (83.3-91.7% accuracy)
+
+The extraction engine handles:
+- Multi-format PAGASA bulletins
+- Complex signal table layouts
+- Rainfall warnings with multiple affected locations
+- Datetime parsing from various formats
+- Wind speed extraction in different units
+
+---
+
+## Dependencies
+
+All dependencies are listed in `requirements.txt`:
+- `pdfplumber` - PDF text extraction
+- `pandas` - Data manipulation
+- `psutil` - System resource monitoring
+- `requests` - URL handling
+- `pypdfium2` - PDF rendering (for GUI)
+- `pillow` - Image processing (for GUI)
+- `tkinter` - GUI framework (standard library)
+
+---
+
+## Troubleshooting
+
+**Virtual environment not activating?**
+- Ensure PowerShell execution policy allows scripts: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+**PDF not extracting?**
+- Check PDF structure with: `python analyze_pdf.py "path/to/pdf.pdf" --json`
+- Ensure `bin/consolidated_locations.csv` exists
+
+**GUI not starting?**
+- Verify `pypdfium2` is installed: `pip install pypdfium2`
+- Ensure display server is available (not in WSL1)
+
+---
+
+## Development
+
+For implementation details, see:
+- [GUI_DOCUMENTATION.md](GUI_DOCUMENTATION.md) - GUI architecture and features
