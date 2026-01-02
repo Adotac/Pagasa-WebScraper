@@ -7,16 +7,26 @@ This script:
 2. Selects the latest PDF for each typhoon
 3. Analyzes the latest PDF using analyze_pdf.py functionality
 
+By default, outputs raw JSON data to stdout (for easy piping/parsing).
+Use --verbose flag to see progress messages (sent to stderr).
+
 Usage:
-    python main.py                      # Uses default bin/PAGASA.html
-    python main.py <html_file_path>     # Uses specified HTML file
-    python main.py <url>                # Scrapes from URL
+    python main.py                      # Uses default bin/PAGASA.html, outputs JSON
+    python main.py <html_file_path>     # Uses specified HTML file, outputs JSON
+    python main.py <url>                # Scrapes from URL, outputs JSON
     python main.py --help               # Show help message
 
 Options:
-    --json                              # Output raw JSON
+    --verbose                           # Show progress messages (to stderr)
     --low-cpu                           # Limit CPU usage to ~30%
-    --metrics                           # Show performance metrics
+    --metrics                           # Show performance metrics (to stderr)
+
+Examples:
+    python main.py                                      # Pure JSON output
+    python main.py --verbose                            # JSON + progress messages
+    python main.py > output.json                        # Save JSON to file
+    python main.py --verbose 2>/dev/null                # JSON only (suppress logs)
+    python main.py | jq '.data.typhoon_windspeed'       # Parse with jq
 """
 
 import sys
@@ -31,9 +41,22 @@ import requests
 import tempfile
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+from contextlib import contextmanager
 
 
-def get_typhoon_names_and_pdfs(source):
+@contextmanager
+def suppress_stdout():
+    """Context manager to suppress stdout output."""
+    with open(os.devnull, 'w') as devnull:
+        old_stdout = sys.stdout
+        sys.stdout = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
+
+
+def get_typhoon_names_and_pdfs(source, verbose=False):
     """
     Extract typhoon names and PDF links from PAGASA bulletin page.
     
@@ -42,6 +65,7 @@ def get_typhoon_names_and_pdfs(source):
     
     Args:
         source: File path or URL to HTML content
+        verbose: If True, show loading messages
         
     Returns:
         List of tuples: [(typhoon_name, [pdf_urls]), ...]
@@ -49,7 +73,8 @@ def get_typhoon_names_and_pdfs(source):
     """
     # Load HTML content
     if source.startswith('http://') or source.startswith('https://'):
-        print(f"Loading HTML from URL: {source}")
+        if verbose:
+            print(f"Loading HTML from URL: {source}", file=sys.stderr)
         response = requests.get(source, timeout=30)
         response.raise_for_status()
         html_content = response.text
@@ -57,7 +82,8 @@ def get_typhoon_names_and_pdfs(source):
         filepath = Path(source)
         if not filepath.exists():
             raise FileNotFoundError(f"HTML file not found: {source}")
-        print(f"Loading HTML from file: {source}")
+        if verbose:
+            print(f"Loading HTML from file: {source}", file=sys.stderr)
         with open(filepath, 'r', encoding='utf-8') as f:
             html_content = f.read()
     
@@ -75,8 +101,12 @@ def get_typhoon_names_and_pdfs(source):
                 typhoon_name = tab_link.get_text(strip=True)
                 typhoon_names.append(typhoon_name)
     
-    # Get PDF links using the existing scraper
-    pdf_links_by_typhoon = scrape_bulletin(source)
+    # Get PDF links using the existing scraper (suppress its output if not verbose)
+    if verbose:
+        pdf_links_by_typhoon = scrape_bulletin(source)
+    else:
+        with suppress_stdout():
+            pdf_links_by_typhoon = scrape_bulletin(source)
     
     # Combine names with PDF links
     result = []
@@ -107,18 +137,20 @@ def get_latest_pdf(pdf_urls):
     return pdf_urls[-1]
 
 
-def download_pdf_if_needed(pdf_url):
+def download_pdf_if_needed(pdf_url, verbose=False):
     """
     Download PDF from URL to temporary file if needed.
     
     Args:
         pdf_url: URL or local path to PDF
+        verbose: If True, show download messages
         
     Returns:
         Tuple of (local_path, is_temp) where is_temp indicates if cleanup is needed
     """
     if pdf_url.startswith('http://') or pdf_url.startswith('https://'):
-        print(f"  Downloading PDF from: {pdf_url}")
+        if verbose:
+            print(f"  Downloading PDF from: {pdf_url}", file=sys.stderr)
         try:
             response = requests.get(pdf_url, timeout=30)
             response.raise_for_status()
@@ -128,15 +160,18 @@ def download_pdf_if_needed(pdf_url):
                 tmp.write(response.content)
                 temp_path = tmp.name
             
-            print(f"  Saved to temporary file: {temp_path}")
+            if verbose:
+                print(f"  Saved to temporary file: {temp_path}", file=sys.stderr)
             return temp_path, True
         except requests.exceptions.RequestException as e:
-            print(f"  Error downloading PDF: {e}")
+            if verbose:
+                print(f"  Error downloading PDF: {e}", file=sys.stderr)
             return None, False
     else:
         # Local file
         if not Path(pdf_url).exists():
-            print(f"  Error: Local file not found: {pdf_url}")
+            if verbose:
+                print(f"  Error: Local file not found: {pdf_url}", file=sys.stderr)
             return None, False
         return pdf_url, False
 
@@ -247,7 +282,7 @@ def main():
     
     low_cpu_mode = '--low-cpu' in sys.argv
     show_metrics = '--metrics' in sys.argv
-    output_json = '--json' in sys.argv
+    verbose = '--verbose' in sys.argv
     
     # Filter out flags to get source
     args = [arg for arg in sys.argv[1:] if not arg.startswith('--')]
@@ -258,90 +293,98 @@ def main():
     else:
         default_html = Path(__file__).parent / "bin" / "PAGASA.html"
         if not default_html.exists():
-            print("Error: Default HTML file not found at bin/PAGASA.html")
-            print(f"Usage: python {sys.argv[0]} <html_file_or_url>")
+            if verbose:
+                print("Error: Default HTML file not found at bin/PAGASA.html", file=sys.stderr)
+                print(f"Usage: python {sys.argv[0]} <html_file_or_url>", file=sys.stderr)
             sys.exit(1)
         source = str(default_html)
-        print(f"No source provided, using default: {source}")
+        if verbose:
+            print(f"No source provided, using default: {source}", file=sys.stderr)
     
     start_time = time.time()
     process = psutil.Process(os.getpid())
     process.cpu_percent(interval=None)  # Initialize CPU monitoring
     time.sleep(0.1)
     
-    if low_cpu_mode:
-        print("[*] Low CPU mode enabled - limiting to ~30% CPU usage\n")
+    if low_cpu_mode and verbose:
+        print("[*] Low CPU mode enabled - limiting to ~30% CPU usage\n", file=sys.stderr)
     
     try:
         # Step 1: Extract typhoon names and PDF links
-        print("\n[STEP 1] Scraping PAGASA bulletin page...")
-        print("-" * 80)
-        typhoons_data = get_typhoon_names_and_pdfs(source)
+        if verbose:
+            print("\n[STEP 1] Scraping PAGASA bulletin page...", file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
+        typhoons_data = get_typhoon_names_and_pdfs(source, verbose=verbose)
         
         if not typhoons_data:
-            print("Error: No typhoons found in the bulletin page.")
+            if verbose:
+                print("Error: No typhoons found in the bulletin page.", file=sys.stderr)
             sys.exit(1)
         
-        print(f"\nFound {len(typhoons_data)} typhoon(s):")
-        for name, pdfs in typhoons_data:
-            print(f"  - {name}: {len(pdfs)} bulletin(s)")
+        if verbose:
+            print(f"\nFound {len(typhoons_data)} typhoon(s):", file=sys.stderr)
+            for name, pdfs in typhoons_data:
+                print(f"  - {name}: {len(pdfs)} bulletin(s)", file=sys.stderr)
         
         # Step 2: Select the latest PDF from the first typhoon
-        print("\n[STEP 2] Selecting latest bulletin...")
-        print("-" * 80)
+        if verbose:
+            print("\n[STEP 2] Selecting latest bulletin...", file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
         
         # Use the first typhoon (most recent)
         typhoon_name, pdf_urls = typhoons_data[0]
         latest_pdf = get_latest_pdf(pdf_urls)
         
         if not latest_pdf:
-            print(f"Error: No PDFs found for {typhoon_name}")
+            if verbose:
+                print(f"Error: No PDFs found for {typhoon_name}", file=sys.stderr)
             sys.exit(1)
         
-        print(f"  Typhoon: {typhoon_name}")
-        print(f"  Latest bulletin: {latest_pdf}")
+        if verbose:
+            print(f"  Typhoon: {typhoon_name}", file=sys.stderr)
+            print(f"  Latest bulletin: {latest_pdf}", file=sys.stderr)
         
         # Step 3: Download PDF if needed
-        print("\n[STEP 3] Preparing PDF for analysis...")
-        print("-" * 80)
-        pdf_path, is_temp = download_pdf_if_needed(latest_pdf)
+        if verbose:
+            print("\n[STEP 3] Preparing PDF for analysis...", file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
+        pdf_path, is_temp = download_pdf_if_needed(latest_pdf, verbose=verbose)
         
         if not pdf_path:
-            print("Error: Failed to access PDF")
+            if verbose:
+                print("Error: Failed to access PDF", file=sys.stderr)
             sys.exit(1)
         
         # Step 4: Analyze the PDF
-        print("\n[STEP 4] Analyzing PDF...")
-        print("-" * 80)
-        print(f"  Processing: {Path(pdf_path).name}")
+        if verbose:
+            print("\n[STEP 4] Analyzing PDF...", file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
+            print(f"  Processing: {Path(pdf_path).name}", file=sys.stderr)
         
         data = analyze_pdf(pdf_path, low_cpu_mode)
         
         if not data:
-            print("Error: Failed to extract data from PDF")
+            if verbose:
+                print("Error: Failed to extract data from PDF", file=sys.stderr)
             sys.exit(1)
         
-        # Step 5: Display results
-        if output_json:
-            print("\n" + "=" * 80)
-            print("JSON OUTPUT")
-            print("=" * 80)
-            output = {
-                'typhoon_name': typhoon_name,
-                'pdf_url': latest_pdf,
-                'data': data
-            }
-            print(json.dumps(output, indent=2))
-        else:
-            display_results(typhoon_name, data)
+        # Step 5: Display results - always output JSON by default
+        output = {
+            'typhoon_name': typhoon_name,
+            'pdf_url': latest_pdf,
+            'data': data
+        }
+        print(json.dumps(output, indent=2))
         
         # Cleanup
         if is_temp and pdf_path:
             try:
                 Path(pdf_path).unlink()
-                print(f"[CLEANUP] Removed temporary file: {pdf_path}")
+                if verbose:
+                    print(f"[CLEANUP] Removed temporary file: {pdf_path}", file=sys.stderr)
             except Exception as e:
-                print(f"Warning: Could not delete temp file: {e}")
+                if verbose:
+                    print(f"Warning: Could not delete temp file: {e}", file=sys.stderr)
         
         # Performance metrics
         elapsed = time.time() - start_time
@@ -350,16 +393,17 @@ def main():
             cpu_percent = process.cpu_percent(interval=None)
             memory_info = process.memory_info()
             
-            print(f"\n{'='*80}")
-            print("[PERFORMANCE METRICS]")
-            print(f"  Total execution time: {elapsed:.2f}s")
-            print(f"  Average CPU usage:    {cpu_percent:.1f}%")
-            print(f"  Memory used:          {memory_info.rss / 1024 / 1024:.2f} MB")
+            print(f"\n{'='*80}", file=sys.stderr)
+            print("[PERFORMANCE METRICS]", file=sys.stderr)
+            print(f"  Total execution time: {elapsed:.2f}s", file=sys.stderr)
+            print(f"  Average CPU usage:    {cpu_percent:.1f}%", file=sys.stderr)
+            print(f"  Memory used:          {memory_info.rss / 1024 / 1024:.2f} MB", file=sys.stderr)
             if low_cpu_mode:
-                print(f"  Low CPU mode:         Enabled")
-            print(f"{'='*80}\n")
+                print(f"  Low CPU mode:         Enabled", file=sys.stderr)
+            print(f"{'='*80}\n", file=sys.stderr)
         
-        print(f"\n[SUCCESS] Analysis completed in {elapsed:.2f}s")
+        if verbose:
+            print(f"\n[SUCCESS] Analysis completed in {elapsed:.2f}s", file=sys.stderr)
         
     except KeyboardInterrupt:
         print("\n\n[INTERRUPTED] Process stopped by user")

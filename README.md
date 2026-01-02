@@ -99,18 +99,27 @@ Returns a 2D array where each sub-array contains PDF links for one typhoon:
 This script integrates the web scraper with PDF analysis to:
 1. Extract typhoon names and PDF links from PAGASA bulletin page
 2. Automatically select the latest bulletin for each typhoon
-3. Analyze the latest PDF and display results
+3. Analyze the latest PDF and output results as JSON
+
+**By default, outputs raw JSON to stdout** (ideal for piping, automation, and scripting).
+Use `--verbose` flag to see progress messages (sent to stderr).
 
 **Basic Usage:**
-```powershell
-# Use default HTML file (bin/PAGASA.html)
+```bash
+# Use default HTML file (bin/PAGASA.html) - outputs JSON
 python main.py
 
-# Specific HTML file
+# Specific HTML file - outputs JSON
 python main.py "path/to/pagasa.html"
 
-# From URL (when live)
-python main.py "https://www.pagasa.dost.gov.ph/tropical-cyclone/severe-weather-bulletin"
+# Show progress messages while outputting JSON
+python main.py --verbose
+
+# Save JSON to file
+python main.py > output.json
+
+# Parse with jq
+python main.py | jq '.data.typhoon_windspeed'
 ```
 
 **Arguments:**
@@ -118,37 +127,44 @@ python main.py "https://www.pagasa.dost.gov.ph/tropical-cyclone/severe-weather-b
 | Argument | Type | Description |
 |----------|------|-------------|
 | `<source>` | string | HTML file path or URL (optional, defaults to bin/PAGASA.html) |
-| `--json` | flag | Output raw JSON data (includes typhoon name, PDF URL, and analysis) |
-| `--metrics` | flag | Show CPU, memory, and execution time metrics |
+| `--verbose` | flag | Show progress messages (sent to stderr, not stdout) |
+| `--metrics` | flag | Show CPU, memory, and execution time metrics (to stderr) |
 | `--low-cpu` | flag | Limit CPU usage to ~30% during PDF processing |
 | `--help` | flag | Show help message |
 
 **Examples:**
-```powershell
-# Analyze latest bulletin from default HTML
+```bash
+# Pure JSON output (no noise)
 python main.py
 
-# Analyze with performance metrics
-python main.py --metrics
+# JSON with progress tracking
+python main.py --verbose
 
-# Get JSON output
-python main.py --json
+# Save JSON to file (silent)
+python main.py > typhoon_data.json
 
-# Low CPU mode for background processing
-python main.py --low-cpu
+# JSON only, suppress any stderr messages
+python main.py 2>/dev/null
 
-# Custom HTML file
-python main.py "wayback_snapshot.html" --json
+# Verbose with metrics
+python main.py --verbose --metrics
+
+# Parse specific field with jq
+python main.py | jq '.data.typhoon_location_text'
+
+# Use in scripts
+WIND_SPEED=$(python main.py | jq -r '.data.typhoon_windspeed')
+echo "Current wind speed: $WIND_SPEED"
 ```
 
 **Features:**
+- ✓ **Raw JSON output by default** - no noise, easy to parse
 - ✓ **Automatic typhoon name detection** from HTML tabs
 - ✓ **Latest bulletin selection** (most recent PDF)
 - ✓ **Integrated PDF analysis** with signal and rainfall warnings
 - ✓ **Remote PDF download** (with automatic cleanup)
-- ✓ **Clear step-by-step progress** tracking
-- ✓ **JSON output support** for programmatic use
-- ✓ **Performance monitoring** options
+- ✓ **Optional progress tracking** with --verbose flag
+- ✓ **Pipe-friendly design** (JSON to stdout, logs to stderr)
 
 **Workflow:**
 ```
@@ -156,11 +172,29 @@ python main.py "wayback_snapshot.html" --json
 2. Select latest bulletin → Get most recent PDF URL
 3. Download PDF (if needed) → Save to temporary file
 4. Analyze PDF → Extract signals, rainfall, location, wind speed
-5. Display results → Show formatted output or JSON
+5. Output JSON → Pure data to stdout
 6. Cleanup → Remove temporary files
 ```
 
-**Output Format:**
+**JSON Output Format:**
+```json
+{
+  "typhoon_name": "Typhoon \"Henry\"",
+  "pdf_url": "https://pubfiles.pagasa.dost.gov.ph/.../TCB#10_henry.pdf",
+  "data": {
+    "updated_datetime": "2024-09-04 05:00:00",
+    "typhoon_location_text": "18.5°N, 126.3°E",
+    "typhoon_windspeed": "150 km/h",
+    "typhoon_movement": "West Northwest at 20 km/h",
+    "signal_warning_tags1": {...},
+    "signal_warning_tags2": {...},
+    "rainfall_warning_tags1": {...},
+    ...
+  }
+}
+```
+
+**Verbose Output (--verbose flag):**
 ```
 [STEP 1] Scraping PAGASA bulletin page...
 Found 1 typhoon(s):
@@ -171,28 +205,9 @@ Found 1 typhoon(s):
   Latest bulletin: https://pubfiles.pagasa.dost.gov.ph/.../TCB#10_henry.pdf
 
 [STEP 3] Preparing PDF for analysis...
-  Downloading PDF from: https://...
-  
 [STEP 4] Analyzing PDF...
-  Processing: TCB#10_henry.pdf
 
-================================================================================
-PAGASA BULLETIN ANALYSIS - Typhoon "Henry"
-================================================================================
-
-[BASIC INFORMATION]
-  Issued:       2024-09-04 05:00:00
-  Location:     18.5°N, 126.3°E
-  Wind Speed:   150 km/h
-  Movement:     West Northwest at 20 km/h
-
-[SIGNAL WARNINGS (TCWS)]
-  Signal 3:
-    Luzon        -> Northern Cagayan, Babuyan Islands
-  
-[RAINFALL WARNINGS]
-  [OK] No rainfall warnings issued
-================================================================================
+(JSON output to stdout)
 
 [SUCCESS] Analysis completed in 12.34s
 ```
