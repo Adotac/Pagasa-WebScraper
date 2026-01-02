@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Import the functions from main.py
 sys.path.insert(0, str(Path(__file__).parent))
-from main import get_typhoon_names_and_pdfs, get_latest_pdf, download_pdf_if_needed, analyze_pdf, display_results
+from main import get_typhoon_names_and_pdfs, get_latest_pdf, analyze_pdf
 
 
 def example1_basic_usage():
@@ -45,9 +45,8 @@ def example1_basic_usage():
     print(f"   {latest_pdf}")
     
     print("\n4. To analyze this PDF, you would call:")
-    print("   pdf_path, is_temp = download_pdf_if_needed(latest_pdf)")
-    print("   data = analyze_pdf(pdf_path)")
-    print("   display_results(typhoon_name, data)")
+    print("   data = analyze_pdf(latest_pdf)  # Handles URLs directly")
+    print("   # Returns JSON data with extracted bulletin information")
     
     print("\n" + "=" * 80 + "\n")
 
@@ -176,17 +175,11 @@ def monitor_typhoons(check_interval=3600):
                 if name not in last_checked or last_checked[name] != latest_pdf:
                     print(f"[{datetime.now()}] New bulletin detected for {name}")
                     
-                    # Download and analyze
-                    pdf_path, is_temp = download_pdf_if_needed(latest_pdf)
-                    if pdf_path:
-                        data = analyze_pdf(pdf_path)
-                        
+                    # Analyze PDF (handles URLs directly, including download & cleanup)
+                    data = analyze_pdf(latest_pdf)
+                    if data:
                         # Send alert (implement your notification logic)
                         send_alert(name, data)
-                        
-                        # Clean up
-                        if is_temp:
-                            Path(pdf_path).unlink()
                     
                     # Update tracking
                     last_checked[name] = latest_pdf

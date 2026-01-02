@@ -170,10 +170,8 @@ echo "Current wind speed: $WIND_SPEED"
 ```
 1. Scrape PAGASA bulletin page → Extract typhoon names & PDF links
 2. Select latest bulletin → Get most recent PDF URL
-3. Download PDF (if needed) → Save to temporary file
-4. Analyze PDF → Extract signals, rainfall, location, wind speed
-5. Output JSON → Pure data to stdout
-6. Cleanup → Remove temporary files
+3. Analyze PDF → Download (if URL), extract data, cleanup automatically
+4. Output JSON → Pure data to stdout
 ```
 
 **JSON Output Format:**
@@ -204,8 +202,10 @@ Found 1 typhoon(s):
   Typhoon: Typhoon "Henry"
   Latest bulletin: https://pubfiles.pagasa.dost.gov.ph/.../TCB#10_henry.pdf
 
-[STEP 3] Preparing PDF for analysis...
-[STEP 4] Analyzing PDF...
+[STEP 3] Analyzing PDF...
+  Downloading PDF from: https://...
+  Saved to temporary file: /tmp/...
+  Cleaned up temporary file: /tmp/...
 
 (JSON output to stdout)
 

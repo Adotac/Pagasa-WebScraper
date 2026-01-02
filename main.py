@@ -137,56 +137,51 @@ def get_latest_pdf(pdf_urls):
     return pdf_urls[-1]
 
 
-def download_pdf_if_needed(pdf_url, verbose=False):
+
+
+def analyze_pdf(pdf_url_or_path, low_cpu_mode=False, verbose=False):
     """
-    Download PDF from URL to temporary file if needed.
+    Analyze a PDF using the TyphoonBulletinExtractor.
     
     Args:
-        pdf_url: URL or local path to PDF
-        verbose: If True, show download messages
+        pdf_url_or_path: URL or local path to PDF file
+        low_cpu_mode: Whether to limit CPU usage
+        verbose: Whether to show download progress
         
     Returns:
-        Tuple of (local_path, is_temp) where is_temp indicates if cleanup is needed
+        Dictionary of extracted data, or None on failure
     """
-    if pdf_url.startswith('http://') or pdf_url.startswith('https://'):
+    # Download PDF if it's a URL (TyphoonBulletinExtractor requires local files)
+    temp_file = None
+    pdf_path = pdf_url_or_path
+    
+    if pdf_url_or_path.startswith('http://') or pdf_url_or_path.startswith('https://'):
         if verbose:
-            print(f"  Downloading PDF from: {pdf_url}", file=sys.stderr)
+            print(f"  Downloading PDF from: {pdf_url_or_path}", file=sys.stderr)
         try:
-            response = requests.get(pdf_url, timeout=30)
+            response = requests.get(pdf_url_or_path, timeout=30)
             response.raise_for_status()
             
             # Save to temporary file
             with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
                 tmp.write(response.content)
-                temp_path = tmp.name
+                temp_file = tmp.name
+                pdf_path = temp_file
             
             if verbose:
-                print(f"  Saved to temporary file: {temp_path}", file=sys.stderr)
-            return temp_path, True
+                print(f"  Saved to temporary file: {temp_file}", file=sys.stderr)
         except requests.exceptions.RequestException as e:
             if verbose:
                 print(f"  Error downloading PDF: {e}", file=sys.stderr)
-            return None, False
+            return None
     else:
-        # Local file
-        if not Path(pdf_url).exists():
+        # Verify local file exists
+        if not Path(pdf_url_or_path).exists():
             if verbose:
-                print(f"  Error: Local file not found: {pdf_url}", file=sys.stderr)
-            return None, False
-        return pdf_url, False
-
-
-def analyze_pdf(pdf_path, low_cpu_mode=False):
-    """
-    Analyze a PDF using the TyphoonBulletinExtractor.
+                print(f"  Error: Local file not found: {pdf_url_or_path}", file=sys.stderr)
+            return None
     
-    Args:
-        pdf_path: Path to PDF file
-        low_cpu_mode: Whether to limit CPU usage
-        
-    Returns:
-        Dictionary of extracted data, or None on failure
-    """
+    # Analyze the PDF
     extractor = TyphoonBulletinExtractor()
     process = psutil.Process(os.getpid())
     
@@ -200,12 +195,22 @@ def analyze_pdf(pdf_path, low_cpu_mode=False):
         
         return data
     except Exception as e:
-        print(f"  Error analyzing PDF: {e}")
-        import traceback
-        traceback.print_exc()
+        if verbose:
+            print(f"  Error analyzing PDF: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
         return None
     finally:
         del extractor
+        # Clean up temporary file if we created one
+        if temp_file:
+            try:
+                Path(temp_file).unlink()
+                if verbose:
+                    print(f"  Cleaned up temporary file: {temp_file}", file=sys.stderr)
+            except Exception as e:
+                if verbose:
+                    print(f"  Warning: Could not delete temp file: {e}", file=sys.stderr)
 
 
 def display_results(typhoon_name, data):
@@ -344,47 +349,25 @@ def main():
             print(f"  Typhoon: {typhoon_name}", file=sys.stderr)
             print(f"  Latest bulletin: {latest_pdf}", file=sys.stderr)
         
-        # Step 3: Download PDF if needed
+        # Step 3: Analyze the PDF (downloads automatically if URL)
         if verbose:
-            print("\n[STEP 3] Preparing PDF for analysis...", file=sys.stderr)
+            print("\n[STEP 3] Analyzing PDF...", file=sys.stderr)
             print("-" * 80, file=sys.stderr)
-        pdf_path, is_temp = download_pdf_if_needed(latest_pdf, verbose=verbose)
         
-        if not pdf_path:
-            if verbose:
-                print("Error: Failed to access PDF", file=sys.stderr)
-            sys.exit(1)
-        
-        # Step 4: Analyze the PDF
-        if verbose:
-            print("\n[STEP 4] Analyzing PDF...", file=sys.stderr)
-            print("-" * 80, file=sys.stderr)
-            print(f"  Processing: {Path(pdf_path).name}", file=sys.stderr)
-        
-        data = analyze_pdf(pdf_path, low_cpu_mode)
+        data = analyze_pdf(latest_pdf, low_cpu_mode=low_cpu_mode, verbose=verbose)
         
         if not data:
             if verbose:
                 print("Error: Failed to extract data from PDF", file=sys.stderr)
             sys.exit(1)
         
-        # Step 5: Display results - always output JSON by default
+        # Step 4: Display results - always output JSON by default
         output = {
             'typhoon_name': typhoon_name,
             'pdf_url': latest_pdf,
             'data': data
         }
         print(json.dumps(output, indent=2))
-        
-        # Cleanup
-        if is_temp and pdf_path:
-            try:
-                Path(pdf_path).unlink()
-                if verbose:
-                    print(f"[CLEANUP] Removed temporary file: {pdf_path}", file=sys.stderr)
-            except Exception as e:
-                if verbose:
-                    print(f"Warning: Could not delete temp file: {e}", file=sys.stderr)
         
         # Performance metrics
         elapsed = time.time() - start_time
