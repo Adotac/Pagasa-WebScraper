@@ -92,7 +92,120 @@ Returns a 2D array where each sub-array contains PDF links for one typhoon:
 
 ---
 
-### 2. Analyze Single PDF: `analyze_pdf.py`
+### 2. Main Pipeline: `main.py` ⭐ **NEW**
+
+**Combines web scraping and PDF analysis in a single automated workflow.**
+
+This script integrates the web scraper with PDF analysis to:
+1. Extract typhoon names and PDF links from PAGASA bulletin page
+2. Automatically select the latest bulletin for each typhoon
+3. Analyze the latest PDF and display results
+
+**Basic Usage:**
+```powershell
+# Use default HTML file (bin/PAGASA.html)
+python main.py
+
+# Specific HTML file
+python main.py "path/to/pagasa.html"
+
+# From URL (when live)
+python main.py "https://www.pagasa.dost.gov.ph/tropical-cyclone/severe-weather-bulletin"
+```
+
+**Arguments:**
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `<source>` | string | HTML file path or URL (optional, defaults to bin/PAGASA.html) |
+| `--json` | flag | Output raw JSON data (includes typhoon name, PDF URL, and analysis) |
+| `--metrics` | flag | Show CPU, memory, and execution time metrics |
+| `--low-cpu` | flag | Limit CPU usage to ~30% during PDF processing |
+| `--help` | flag | Show help message |
+
+**Examples:**
+```powershell
+# Analyze latest bulletin from default HTML
+python main.py
+
+# Analyze with performance metrics
+python main.py --metrics
+
+# Get JSON output
+python main.py --json
+
+# Low CPU mode for background processing
+python main.py --low-cpu
+
+# Custom HTML file
+python main.py "wayback_snapshot.html" --json
+```
+
+**Features:**
+- ✓ **Automatic typhoon name detection** from HTML tabs
+- ✓ **Latest bulletin selection** (most recent PDF)
+- ✓ **Integrated PDF analysis** with signal and rainfall warnings
+- ✓ **Remote PDF download** (with automatic cleanup)
+- ✓ **Clear step-by-step progress** tracking
+- ✓ **JSON output support** for programmatic use
+- ✓ **Performance monitoring** options
+
+**Workflow:**
+```
+1. Scrape PAGASA bulletin page → Extract typhoon names & PDF links
+2. Select latest bulletin → Get most recent PDF URL
+3. Download PDF (if needed) → Save to temporary file
+4. Analyze PDF → Extract signals, rainfall, location, wind speed
+5. Display results → Show formatted output or JSON
+6. Cleanup → Remove temporary files
+```
+
+**Output Format:**
+```
+[STEP 1] Scraping PAGASA bulletin page...
+Found 1 typhoon(s):
+  - Typhoon "Henry": 10 bulletin(s)
+
+[STEP 2] Selecting latest bulletin...
+  Typhoon: Typhoon "Henry"
+  Latest bulletin: https://pubfiles.pagasa.dost.gov.ph/.../TCB#10_henry.pdf
+
+[STEP 3] Preparing PDF for analysis...
+  Downloading PDF from: https://...
+  
+[STEP 4] Analyzing PDF...
+  Processing: TCB#10_henry.pdf
+
+================================================================================
+PAGASA BULLETIN ANALYSIS - Typhoon "Henry"
+================================================================================
+
+[BASIC INFORMATION]
+  Issued:       2024-09-04 05:00:00
+  Location:     18.5°N, 126.3°E
+  Wind Speed:   150 km/h
+  Movement:     West Northwest at 20 km/h
+
+[SIGNAL WARNINGS (TCWS)]
+  Signal 3:
+    Luzon        -> Northern Cagayan, Babuyan Islands
+  
+[RAINFALL WARNINGS]
+  [OK] No rainfall warnings issued
+================================================================================
+
+[SUCCESS] Analysis completed in 12.34s
+```
+
+**Use Cases:**
+- **Monitoring latest typhoon updates**: Quickly get current bulletin analysis
+- **Automated alerts**: Integrate with notification systems
+- **Data collection**: Export JSON for storage or further processing
+- **Research**: Track typhoon progression over time
+
+---
+
+### 3. Analyze Single PDF: `analyze_pdf.py`
 
 Analyze individual PAGASA PDF bulletins with accurate data extraction.
 
@@ -148,7 +261,7 @@ python analyze_pdf.py --random --low-cpu --metrics
 
 ---
 
-### 3. Batch Process All PDFs: `typhoon_extraction_ml.py`
+### 4. Batch Process All PDFs: `typhoon_extraction_ml.py`
 
 Extract data from all PDFs in the dataset directory.
 
@@ -183,7 +296,7 @@ python typhoon_extraction_ml.py "dataset/pdfs" --output "results.json"
 
 ---
 
-### 4. Test Extraction Accuracy: `test_accuracy.py`
+### 5. Test Extraction Accuracy: `test_accuracy.py`
 
 Validate extraction accuracy by comparing against ground truth annotations.
 
@@ -228,7 +341,7 @@ python test_accuracy.py --detailed --metrics
 
 ---
 
-### 5. PDF Annotation GUI: `pdf_annotation_gui.py`
+### 6. PDF Annotation GUI: `pdf_annotation_gui.py`
 
 Interactive GUI for manually annotating PDFs with extracted JSON data.
 
