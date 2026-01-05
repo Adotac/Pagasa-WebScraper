@@ -276,13 +276,13 @@ python analyze_pdf.py --random --low-cpu --metrics
 
 ---
 
-### 4. Batch Process All PDFs: `typhoon_extraction_ml.py`
+### 4. Batch Process All PDFs: `typhoon_extraction.py`
 
 Extract data from all PDFs in the dataset directory.
 
 **Basic Usage:**
 ```powershell
-python typhoon_extraction_ml.py
+python typhoon_extraction.py
 ```
 
 **Arguments:**
@@ -295,13 +295,13 @@ python typhoon_extraction_ml.py
 **Examples:**
 ```powershell
 # Process all PDFs in dataset/pdfs/ (default)
-python typhoon_extraction_ml.py
+python typhoon_extraction.py
 
 # Process custom directory
-python typhoon_extraction_ml.py "path/to/pdfs"
+python typhoon_extraction.py "path/to/pdfs"
 
 # Specify output file
-python typhoon_extraction_ml.py "dataset/pdfs" --output "results.json"
+python typhoon_extraction.py "dataset/pdfs" --output "results.json"
 ```
 
 **Output:**
@@ -410,7 +410,7 @@ bin/
 └── PAGASA.html                      # Sample HTML from wayback machine
 
 scrape_bulletin.py                   # Web scraper for bulletin page
-typhoon_extraction_ml.py             # Main extraction engine
+typhoon_extraction.py                # Main extraction engine
 analyze_pdf.py                       # Single PDF analysis tool
 test_accuracy.py                     # Accuracy validation
 pdf_annotation_gui.py                # Annotation GUI

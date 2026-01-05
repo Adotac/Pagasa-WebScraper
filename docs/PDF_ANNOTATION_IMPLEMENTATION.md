@@ -83,7 +83,7 @@ Successfully created a comprehensive PDF annotation GUI tool for the Pagasa-WebS
 - **pathlib**: Path management (standard library)
 
 ### Integration Points
-- Imports `TyphoonBulletinExtractor` from `typhoon_extraction_ml.py`
+- Imports `TyphoonBulletinExtractor` from `typhoon_extraction.py`
 - Uses existing extraction pipeline
 - Reads from `dataset/pdfs/` directory
 - Writes to `dataset/pdfs_annotation/` directory

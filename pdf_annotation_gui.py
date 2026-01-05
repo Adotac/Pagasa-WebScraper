@@ -22,7 +22,7 @@ Requirements:
     - Python 3.8+
     - tkinter (standard library)
     - pypdfium2 (for PDF rendering)
-    - typhoon_extraction_ml.py (for extraction logic)
+    - typhoon_extraction.py (for extraction logic)
 """
 
 import tkinter as tk
@@ -39,10 +39,10 @@ import pdfplumber
 
 # Import the extraction logic
 try:
-    from typhoon_extraction_ml import TyphoonBulletinExtractor
+    from typhoon_extraction import TyphoonBulletinExtractor
 except ImportError as e:
     print(f"Error: Cannot import TyphoonBulletinExtractor: {e}")
-    print("Make sure typhoon_extraction_ml.py is in the same directory.")
+    print("Make sure typhoon_extraction.py is in the same directory.")
     sys.exit(1)
 
 

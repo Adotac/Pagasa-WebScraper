@@ -49,10 +49,10 @@ else
     files_ok=false
 fi
 
-if [ -f "typhoon_extraction_ml.py" ]; then
-    echo "   ✓ typhoon_extraction_ml.py found"
+if [ -f "typhoon_extraction.py" ]; then
+    echo "   ✓ typhoon_extraction.py found"
 else
-    echo "   ✗ typhoon_extraction_ml.py not found"
+    echo "   ✗ typhoon_extraction.py not found"
     files_ok=false
 fi
 
@@ -112,7 +112,7 @@ echo ""
 
 # Final check
 echo "[5/5] Final verification..."
-if python -c "from typhoon_extraction_ml import TyphoonBulletinExtractor" 2>/dev/null; then
+if python -c "from typhoon_extraction import TyphoonBulletinExtractor" 2>/dev/null; then
     echo "   ✓ Extraction module imports successfully"
 else
     echo "   ✗ Cannot import TyphoonBulletinExtractor"

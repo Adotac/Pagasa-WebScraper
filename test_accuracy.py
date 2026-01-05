@@ -22,7 +22,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Dict, Any, Tuple, List
-from typhoon_extraction_ml import TyphoonBulletinExtractor
+from typhoon_extraction import TyphoonBulletinExtractor
 import difflib
 
 # Base paths
@@ -190,8 +190,14 @@ class AccuracyTester:
         }
         
         try:
+            # Construct full annotation path
+            annotation_path = ANNOTATIONS_PATH / annotation_filename
+            
+            # Get base filename for PDF path lookup (without subdirectory)
+            base_filename = Path(annotation_filename).name
+            
             # Get PDF path
-            pdf_path = AnnotationMatcher.get_pdf_path(annotation_filename)
+            pdf_path = AnnotationMatcher.get_pdf_path(base_filename)
             detail["pdf_file"] = str(pdf_path)
             
             # Check if PDF exists
@@ -201,7 +207,6 @@ class AccuracyTester:
                 return False, detail
             
             # Load ground truth annotation
-            annotation_path = ANNOTATIONS_PATH / annotation_filename
             with open(annotation_path, 'r', encoding='utf-8') as f:
                 ground_truth = json.load(f)
             
@@ -239,7 +244,7 @@ class AccuracyTester:
     
     def run_all_tests(self) -> Dict[str, Any]:
         """Run tests for all annotation files"""
-        annotation_files = sorted(list(ANNOTATIONS_PATH.glob("*.json")))
+        annotation_files = sorted(list(ANNOTATIONS_PATH.glob("**/*.json")))
         
         if not annotation_files:
             print("Error: No annotation files found in", ANNOTATIONS_PATH)
@@ -249,8 +254,9 @@ class AccuracyTester:
         print(f"Testing accuracy of PDF extraction...\n")
         
         for idx, annotation_file in enumerate(annotation_files, 1):
-            filename = annotation_file.name
-            passed, detail = self.test_single_file(filename)
+            # Get relative path from ANNOTATIONS_PATH
+            relative_path = annotation_file.relative_to(ANNOTATIONS_PATH)
+            passed, detail = self.test_single_file(str(relative_path))
             
             self.results["total_tests"] += 1
             
@@ -271,12 +277,12 @@ class AccuracyTester:
             
             if self.verbose or detail["status"] in ["error"]:
                 accuracy_str = f" ({detail['accuracy_percent']:.1f}%)" if detail.get('accuracy_percent') else ""
-                print(f"[{idx:3d}/{len(annotation_files)}] {status_str} - {filename}{accuracy_str}")
+                print(f"[{idx:3d}/{len(annotation_files)}] {status_str} - {annotation_file.name}{accuracy_str}")
                 if detail["error"]:
                     print(f"         Error: {detail['error']}")
             else:
                 accuracy_str = f" ({detail['accuracy_percent']:.1f}%)" if detail.get('accuracy_percent') else ""
-                print(f"[{idx:3d}/{len(annotation_files)}] {status_str} - {filename}{accuracy_str}")
+                print(f"[{idx:3d}/{len(annotation_files)}] {status_str} - {annotation_file.name}{accuracy_str}")
             
             # Track field-level accuracy
             if detail["comparison"]:
@@ -289,8 +295,8 @@ class AccuracyTester:
         """Test a specific bulletin"""
         print(f"Testing bulletin: {bulletin_name}\n")
         
-        # Find matching annotation files
-        matching_files = list(ANNOTATIONS_PATH.glob(f"{bulletin_name}*.json"))
+        # Find matching annotation files (search in subdirectories)
+        matching_files = list(ANNOTATIONS_PATH.glob(f"**/{bulletin_name}*.json"))
         
         if not matching_files:
             print(f"Error: No annotation files found for {bulletin_name}")

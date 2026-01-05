@@ -9,7 +9,7 @@ Usage: python analyze_pdf.py "<path_to_pdf>"
        python analyze_pdf.py "<path_to_pdf>" --json       # Raw JSON output
 """
 
-from typhoon_extraction_ml import TyphoonBulletinExtractor
+from typhoon_extraction import TyphoonBulletinExtractor
 import json
 import sys
 import tempfile

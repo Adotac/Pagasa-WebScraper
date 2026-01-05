@@ -148,7 +148,7 @@ The extracted JSON follows the TyphoonHubType structure:
 - Check file extensions are `.pdf` (lowercase)
 
 ### "Extractor Init Failed"
-- Verify `typhoon_extraction_ml.py` is in the same directory
+- Verify `typhoon_extraction.py` is in the same directory
 - Ensure `bin/consolidated_locations.csv` exists
 - Check all dependencies are installed
 
@@ -183,7 +183,7 @@ The tool maintains state automatically:
 ### Custom Extraction Rules
 
 To modify extraction logic:
-1. Edit `typhoon_extraction_ml.py`
+1. Edit `typhoon_extraction.py`
 2. Restart the GUI to reload the extractor
 3. Use **"Re-analyze"** button to re-process PDFs
 
@@ -287,7 +287,7 @@ Run the tool and verify:
 
 For issues or questions:
 1. Check this README
-2. Review `typhoon_extraction_ml.py` documentation
+2. Review `typhoon_extraction.py` documentation
 3. Check `analyze_pdf.py` for extraction examples
 4. Verify dependencies with `verify_install.py`
 

@@ -45,10 +45,10 @@ if exist "pdf_annotation_gui.py" (
     set files_ok=0
 )
 
-if exist "typhoon_extraction_ml.py" (
-    echo    OK typhoon_extraction_ml.py found
+if exist "typhoon_extraction.py" (
+    echo    OK typhoon_extraction.py found
 ) else (
-    echo    X typhoon_extraction_ml.py not found
+    echo    X typhoon_extraction.py not found
     set files_ok=0
 )
 
@@ -132,7 +132,7 @@ echo.
 
 REM Final check
 echo [5/5] Final verification...
-python -c "from typhoon_extraction_ml import TyphoonBulletinExtractor" 2>nul
+python -c "from typhoon_extraction import TyphoonBulletinExtractor" 2>nul
 if %errorlevel% neq 0 (
     echo    X Cannot import TyphoonBulletinExtractor
     echo       Check that all dependencies are installed

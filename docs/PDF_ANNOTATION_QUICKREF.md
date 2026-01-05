@@ -138,7 +138,7 @@ python pdf_annotation_gui.py
 
 1. Read `PDF_ANNOTATION_GUI_README.md` for full guide
 2. Check `PDF_ANNOTATION_IMPLEMENTATION.md` for technical details
-3. Review `typhoon_extraction_ml.py` for extraction logic
+3. Review `typhoon_extraction.py` for extraction logic
 4. Run `python verify_install.py` to check dependencies
 
 ## Support Contact
@@ -146,5 +146,5 @@ python pdf_annotation_gui.py
 For issues:
 - Check documentation files
 - Verify dependencies are installed
-- Ensure `typhoon_extraction_ml.py` is present
+- Ensure `typhoon_extraction.py` is present
 - Check Python version is 3.8.10+

@@ -36,7 +36,7 @@ import psutil
 import os
 from pathlib import Path
 from scrape_bulletin import scrape_bulletin
-from typhoon_extraction_ml import TyphoonBulletinExtractor
+from typhoon_extraction import TyphoonBulletinExtractor
 import requests
 import tempfile
 from urllib.parse import urlparse
