@@ -1,0 +1,83 @@
+name,population,code,region_code
+Ilocos Norte,609588,028,01
+Ilocos Sur,706009,029,01
+La Union,822352,033,01
+Pangasinan,3163190,055,01
+Batanes,18831,009,02
+Cagayan,1268603,015,02
+Isabela,1697050,031,02
+Nueva Vizcaya,497432,050,02
+Quirino,203828,057,02
+Bataan,853373,008,03
+Bulacan,3708890,014,03
+Nueva Ecija,2310134,049,03
+Pampanga,2437709,054,03
+Tarlac,1503456,069,03
+Zambales,649615,071,03
+Aurora,235750,077,03
+Batangas,2908494,010,04
+Cavite,4344829,021,04
+Laguna,3382193,034,04
+Quezon,1950459,056,04
+Rizal,3330143,058,04
+Marinduque,239207,040,17
+Occidental Mindoro,525354,051,17
+Oriental Mindoro,908339,052,17
+Palawan,939594,053,17
+Romblon,308985,059,17
+Albay,1374768,005,05
+Camarines Norte,629699,016,05
+Camarines Sur,2068244,017,05
+Catanduanes,271879,020,05
+Masbate,908920,041,05
+Sorsogon,828655,062,05
+Aklan,615475,004,06
+Antique,612974,006,06
+Capiz,804952,019,06
+Iloilo,2051899,030,06
+Negros Occidental,2623172,045,06
+Guimaras,187842,079,06
+Bohol,1394329,012,07
+Cebu,3325385,022,07
+Negros Oriental,1432990,046,07
+Siquijor,103395,061,07
+Eastern Samar,477168,026,08
+Leyte,1776847,037,08
+Northern Samar,639186,048,08
+Samar,793183,060,08
+Southern Leyte,429573,064,08
+Biliran,179312,078,08
+Zamboanga del Norte,1047455,072,09
+Zamboanga del Sur,1050668,073,09
+Zamboanga Sibugay,669840,083,09
+Bukidnon,1541308,013,10
+Camiguin,92808,018,10
+Lanao del Norte,722902,035,10
+Misamis Occidental,617333,042,10
+Misamis Oriental,956900,043,10
+Davao del Norte,1125057,023,11
+Davao del Sur,680481,024,11
+Davao Oriental,576343,025,11
+Davao de Oro,767547,082,11
+Davao Occidental,317159,086,11
+Cotabato,1490618,047,12
+South Cotabato,975476,063,12
+Sultan Kudarat,854052,065,12
+Sarangani,558946,080,12
+Abra,250985,001,14
+Benguet,460683,011,14
+Ifugao,207498,027,14
+Kalinga,229570,032,14
+Mountain Province,158200,044,14
+Apayao,124366,081,14
+Agusan del Norte,387503,002,16
+Agusan del Sur,739367,003,16
+Surigao del Norte,534636,067,16
+Surigao del Sur,642255,068,16
+Dinagat Islands,128117,085,16
+Basilan,426207,007,19
+Lanao del Sur,1195518,036,19
+Sulu,1000108,066,19
+Tawi-Tawi,440276,070,19
+Maguindanao del Norte,618421,087,19
+Maguindanao del Sur,723758,088,19

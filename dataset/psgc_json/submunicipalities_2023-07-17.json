@@ -1,0 +1,100 @@
+[
+    {
+        "name": "Tondo I/II",
+        "population": 654220,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "01"
+    },
+    {
+        "name": "Binondo",
+        "population": 20491,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "02"
+    },
+    {
+        "name": "Quiapo",
+        "population": 29846,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "03"
+    },
+    {
+        "name": "San Nicolas",
+        "population": 42957,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "04"
+    },
+    {
+        "name": "Santa Cruz",
+        "population": 126735,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "05"
+    },
+    {
+        "name": "Sampaloc",
+        "population": 388305,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "06"
+    },
+    {
+        "name": "San Miguel",
+        "population": 18599,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "07"
+    },
+    {
+        "name": "Ermita",
+        "population": 19189,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "08"
+    },
+    {
+        "name": "Intramuros",
+        "population": 6103,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "09"
+    },
+    {
+        "name": "Malate",
+        "population": 99257,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "10"
+    },
+    {
+        "name": "Paco",
+        "population": 79839,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "11"
+    },
+    {
+        "name": "Pandacan",
+        "population": 84769,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "12"
+    },
+    {
+        "name": "Port Area",
+        "population": 72605,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "13"
+    },
+    {
+        "name": "Santa Ana",
+        "population": 203598,
+        "region_code": "13",
+        "province_code": "806",
+        "municipality_code": "14"
+    }
+]

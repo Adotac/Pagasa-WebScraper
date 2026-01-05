@@ -1,0 +1,149 @@
+name,population,code,province_code,region_code
+City of Batac,55484,05,028,01
+City of Laoag ,111651,12,028,01
+City of Candon,61432,06,029,01
+City of Vigan ,53935,34,029,01
+City of San Fernando ,125640,14,033,01
+City of Alaminos,99397,03,055,01
+City of Dagupan,174302,18,055,01
+City of San Carlos,205424,32,055,01
+City of Urdaneta,144577,46,055,01
+Tuguegarao City ,166334,29,015,02
+City of Cauayan,143403,08,031,02
+City of Ilagan ,158218,14,031,02
+City of Santiago,148580,35,031,02
+City of Balanga ,104173,03,008,03
+City of Baliwag,168470,03,014,03
+City of Malolos ,261189,10,014,03
+City of Meycauayan,225673,12,014,03
+City of San Jose Del Monte,651813,20,014,03
+City of Cabanatuan,327325,03,049,03
+City of Gapan,122968,08,049,03
+Science City of Muñoz,84308,17,049,03
+City of Palayan ,45383,19,049,03
+San Jose City,150917,26,049,03
+City of Angeles,462928,00,301,03
+Mabalacat City,293244,09,054,03
+City of San Fernando ,354666,16,054,03
+City of Tarlac ,385398,16,069,03
+City of Olongapo,260317,00,314,03
+Batangas City ,351437,05,010,04
+City of Calaca,87361,07,010,04
+City of Lipa,372931,14,010,04
+City of Sto. Tomas,218500,28,010,04
+City of Tanauan,193936,31,010,04
+City of Bacoor,664625,03,021,04
+City of Cavite,100674,05,021,04
+City of Dasmariñas,703141,06,021,04
+City of General Trias,450583,08,021,04
+City of Imus,496794,09,021,04
+City of Tagaytay,85330,19,021,04
+City of Trece Martires ,210503,22,021,04
+City of Biñan,407437,03,034,04
+City of Cabuyao,355330,04,034,04
+City of Calamba,539671,05,034,04
+City of San Pablo,285348,24,034,04
+City of San Pedro,326001,25,034,04
+City of Santa Rosa,414812,28,034,04
+City of Lucena ,278924,00,312,04
+City of Tayabas,112658,47,056,04
+City of Antipolo ,887399,02,058,04
+City of Calapan ,145786,05,052,17
+City of Puerto Princesa ,307079,00,315,17
+City of Legazpi ,209533,06,005,05
+City of Ligao,118096,08,005,05
+City of Tabaco,140961,17,005,05
+City of Iriga,114457,16,017,05
+City of Naga,209170,24,017,05
+City of Masbate ,104522,11,041,05
+City of Sorsogon ,182237,16,062,05
+City of Roxas ,179292,14,019,06
+City of Iloilo ,457626,00,310,06
+City of Passi,88873,35,030,06
+City of Bacolod ,600783,00,302,06
+City of Bago,191210,02,045,06
+City of Cadiz,158544,04,045,06
+City of Escalante,96159,09,045,06
+City of Himamaylan,116240,10,045,06
+City of Kabankalan,200198,15,045,06
+City of La Carlota,66664,16,045,06
+City of Sagay,148894,23,045,06
+City of San Carlos,132650,24,045,06
+City of Silay,130478,26,045,06
+City of Sipalay,72448,27,045,06
+City of Talisay,108909,28,045,06
+City of Victorias,90101,31,045,06
+City of Tagbilaran ,104976,42,012,07
+City of Bogo,88867,11,022,07
+City of Carcar,136453,14,022,07
+City of Cebu ,964169,00,306,07
+Danao City,156321,23,022,07
+City of Lapu-Lapu,497604,00,311,07
+City of Mandaue,364116,00,313,07
+City of Naga,133184,34,022,07
+City of Talisay,263048,50,022,07
+City of Toledo,207314,51,022,07
+City of Bais,84317,04,046,07
+City of Bayawan,122747,06,046,07
+City of Canlaon,58822,08,046,07
+City of Dumaguete ,134103,10,046,07
+City of Guihulngan,102656,11,046,07
+City of Tanjay,82642,21,046,07
+City of Borongan ,71961,04,026,08
+City of Baybay,111848,08,037,08
+Ormoc City,230998,38,037,08
+City of Tacloban ,251881,00,316,08
+City of Calbayog,186960,03,060,08
+City of Catbalogan ,106440,05,060,08
+City of Maasin ,87446,07,064,08
+City of Dapitan,85202,01,072,09
+City of Dipolog ,138141,02,072,09
+City of Pagadian ,210452,22,073,09
+City of Zamboanga,977234,00,317,09
+City of Isabela,130379,01,901,09
+City of Malaybalay ,190712,12,013,10
+City of Valencia,216546,21,013,10
+City of Iligan,363115,00,309,10
+City of Oroquieta ,72301,09,042,10
+City of Ozamiz,140334,10,042,10
+City of Tangub,68389,15,042,10
+City of Cagayan De Oro ,728402,00,305,10
+City of El Salvador,58771,07,043,10
+City of Gingoog,136698,08,043,10
+City of Panabo,209230,15,023,11
+Island Garden City of Samal,116771,17,023,11
+City of Tagum ,296202,19,023,11
+City of Davao,1776949,00,307,11
+City of Digos ,188376,03,024,11
+City of Mati ,147547,09,025,11
+City of Kidapawan ,160791,04,047,12
+City of General Santos,697315,00,308,12
+City of Koronadal ,195398,06,063,12
+City of Tacurong,109319,11,065,12
+City of Manila,1846513,00,806,13
+City of Mandaluyong,425758,00,805,13
+City of Marikina,456059,00,807,13
+City of Pasig,803159,00,812,13
+Quezon City,2960048,00,813,13
+City of San Juan,126347,00,814,13
+City of Caloocan,1661584,00,801,13
+City of Malabon,380522,00,804,13
+City of Navotas,247543,00,809,13
+City of Valenzuela,714978,00,816,13
+City of Las Piñas,606293,00,802,13
+City of Makati,629616,00,803,13
+City of Muntinlupa,543445,00,808,13
+City of Parañaque,689992,00,810,13
+Pasay City,440656,00,811,13
+City of Taguig,886722,00,815,13
+City of Baguio,366358,00,303,14
+City of Tabuk ,121033,13,032,14
+City of Butuan ,372910,00,304,16
+City of Cabadbaran,80354,03,002,16
+City of Bayugan,109499,01,003,16
+City of Surigao ,171107,24,067,16
+City of Bislig,99290,03,068,16
+City of Tandag ,62669,19,068,16
+City of Lamitan ,100150,02,007,19
+City of Marawi ,207010,17,036,19
+City of Cotabato,325079,03,087,19

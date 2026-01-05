@@ -1,0 +1,87 @@
+[
+    {
+        "name": "Region I (Ilocos Region)",
+        "population": 5301139,
+        "code": "01"
+    },
+    {
+        "name": "Region II (Cagayan Valley)",
+        "population": 3685744,
+        "code": "02"
+    },
+    {
+        "name": "Region III (Central Luzon)",
+        "population": 12422172,
+        "code": "03"
+    },
+    {
+        "name": "Region IV-A (CALABARZON)",
+        "population": 16195042,
+        "code": "04"
+    },
+    {
+        "name": "MIMAROPA Region",
+        "population": 3228558,
+        "code": "17"
+    },
+    {
+        "name": "Region V (Bicol Region)",
+        "population": 6082165,
+        "code": "05"
+    },
+    {
+        "name": "Region VI (Western Visayas)",
+        "population": 7954723,
+        "code": "06"
+    },
+    {
+        "name": "Region VII (Central Visayas)",
+        "population": 8081988,
+        "code": "07"
+    },
+    {
+        "name": "Region VIII (Eastern Visayas)",
+        "population": 4547150,
+        "code": "08"
+    },
+    {
+        "name": "Region IX (Zamboanga Peninsula)",
+        "population": 3875576,
+        "code": "09"
+    },
+    {
+        "name": "Region X (Northern Mindanao)",
+        "population": 5022768,
+        "code": "10"
+    },
+    {
+        "name": "Region XI (Davao Region)",
+        "population": 5243536,
+        "code": "11"
+    },
+    {
+        "name": "Region XII (SOCCSKSARGEN)",
+        "population": 4901486,
+        "code": "12"
+    },
+    {
+        "name": "National Capital Region (NCR)",
+        "population": 13484462,
+        "code": "13"
+    },
+    {
+        "name": "Cordillera Administrative Region (CAR)",
+        "population": 1797660,
+        "code": "14"
+    },
+    {
+        "name": "Region XIII (Caraga)",
+        "population": 2804788,
+        "code": "16"
+    },
+    {
+        "name": "Bangsamoro Autonomous Region In Muslim Mindanao (BARMM)",
+        "population": 4404288,
+        "code": "19"
+    }
+]
