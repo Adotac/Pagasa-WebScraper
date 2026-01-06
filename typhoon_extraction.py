@@ -129,6 +129,11 @@ class SignalWarningExtractor:
     
     ISLAND_GROUPS = ['Luzon', 'Visayas', 'Mindanao']
     
+    # Table extraction constants
+    MIN_TABLE_ROWS = 2
+    MAX_HEADER_SEARCH_ROWS = 5
+    MIN_COLUMNS_FOR_TCWS_TABLE = 4
+    
     def __init__(self, location_matcher: LocationMatcher):
         self.location_matcher = location_matcher
     
@@ -165,6 +170,9 @@ class SignalWarningExtractor:
                 table_result = self._extract_signals_from_table(pdf_path)
                 if table_result:
                     return table_result
+            except (FileNotFoundError, PermissionError) as e:
+                # Fall back to text-based extraction if file access fails
+                print(f"Warning: Cannot access PDF file, falling back to text parsing: {e}")
             except Exception as e:
                 # Fall back to text-based extraction if table extraction fails
                 print(f"Warning: Table extraction failed, falling back to text parsing: {e}")
@@ -186,8 +194,6 @@ class SignalWarningExtractor:
         
         Returns: {signal_level: {island_group: location_string}} or None if no table found
         """
-        import pdfplumber
-        
         result = {1: {}, 2: {}, 3: {}, 4: {}, 5: {}}
         
         # Initialize all island groups to None for each signal level
@@ -204,7 +210,7 @@ class SignalWarningExtractor:
                     tables = page.extract_tables()
                     
                     for table in tables:
-                        if not table or len(table) < 2:
+                        if not table or len(table) < self.MIN_TABLE_ROWS:
                             continue
                         
                         # Look for TCWS table by checking headers
@@ -216,8 +222,8 @@ class SignalWarningExtractor:
                         header_row_idx = -1
                         
                         # Find the header row with column names
-                        for i, row in enumerate(table[:5]):  # Check first 5 rows
-                            if row and len(row) >= 4:
+                        for i, row in enumerate(table[:self.MAX_HEADER_SEARCH_ROWS]):
+                            if row and len(row) >= self.MIN_COLUMNS_FOR_TCWS_TABLE:
                                 # Check if this row has the expected column headers
                                 row_str = ' '.join([str(cell).lower() if cell else '' for cell in row])
                                 if 'tcws' in row_str and 'luzon' in row_str and 'visayas' in row_str and 'mindanao' in row_str:
@@ -247,7 +253,7 @@ class SignalWarningExtractor:
                         # Parse data rows (after header)
                         for row_idx in range(header_row_idx + 1, len(table)):
                             row = table[row_idx]
-                            if not row or len(row) < 2:
+                            if not row or len(row) < self.MIN_TABLE_ROWS:
                                 continue
                             
                             # Extract signal number from first column
@@ -279,6 +285,9 @@ class SignalWarningExtractor:
                                         
                                         if location_text and location_text != '-':
                                             result[signal_num][island_group] = location_text
+        except (FileNotFoundError, PermissionError, IOError) as e:
+            print(f"Error accessing PDF file: {e}")
+            return None
         except Exception as e:
             print(f"Error extracting table from PDF: {e}")
             return None
