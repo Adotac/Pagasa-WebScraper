@@ -160,8 +160,15 @@ class SignalWarningExtractor:
         
         text_lower = text.lower()
         
-        # Check for "no signal" statement
-        if 'no tropical cyclone wind signal' in text_lower:
+        # Check for "no signal" statement (various phrasings)
+        no_signal_phrases = [
+            'no tropical cyclone wind signal',
+            'no wind signal currently hoisted',
+            'no wind signal is currently hoisted',
+            'no tcws currently hoisted',
+            'no signal currently in effect'
+        ]
+        if any(phrase in text_lower for phrase in no_signal_phrases):
             return result
         
         # Try table-based extraction first (if pdf_path provided)
@@ -180,6 +187,17 @@ class SignalWarningExtractor:
         # Fallback: Extract signal section from the bulletin text
         signal_section = self._extract_signal_section(text)
         if not signal_section:
+            return result
+        
+        # Check if the signal section just says "no signal"
+        signal_section_lower = signal_section.lower()
+        no_signal_phrases = [
+            'no wind signal currently hoisted',
+            'no wind signal is currently hoisted',
+            'no tcws currently hoisted',
+            'no signal currently in effect'
+        ]
+        if any(phrase in signal_section_lower for phrase in no_signal_phrases):
             return result
         
         # Parse the TCWS table structure from text
