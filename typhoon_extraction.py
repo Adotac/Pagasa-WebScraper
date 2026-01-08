@@ -161,12 +161,16 @@ class SignalWarningExtractor:
         text_lower = text.lower()
         
         # Check for "no signal" statement (various phrasings)
+        # These phrases are based on actual PAGASA bulletin text from final/advisory bulletins
+        # Examples found in real PDFs:
+        # - "No Wind Signal currently hoisted." (Paolo TCB#19, Emong TCB#21-FINAL)
+        # - "No Tropical Cyclone Wind Signal is currently in effect." (Karding TCB#26-FINAL, Gener TCB#14-FINAL)
+        # - "No Tropical Cyclone Wind Signals hoisted at this time." (Rosal TCB#12-FINAL)
+        # - "No Wind Signal hoisted at this time." (Leon TCB#26-FINAL)
         no_signal_phrases = [
-            'no tropical cyclone wind signal',
-            'no wind signal currently hoisted',
-            'no wind signal is currently hoisted',
-            'no tcws currently hoisted',
-            'no signal currently in effect'
+            'no tropical cyclone wind signal',  # Covers "is currently in effect" and "hoisted" variations
+            'no wind signal',  # Covers "currently hoisted" and "hoisted at this time" variations
+            'no tcws',  # Abbreviation variant
         ]
         if any(phrase in text_lower for phrase in no_signal_phrases):
             return result
@@ -190,12 +194,13 @@ class SignalWarningExtractor:
             return result
         
         # Check if the signal section just says "no signal"
+        # Secondary check to catch cases where the section itself contains no-signal text
+        # This handles bulletins where table extraction fails but text clearly states no signals
         signal_section_lower = signal_section.lower()
         no_signal_phrases = [
-            'no wind signal currently hoisted',
-            'no wind signal is currently hoisted',
-            'no tcws currently hoisted',
-            'no signal currently in effect'
+            'no wind signal',  # Covers "currently hoisted", "hoisted at this time", etc.
+            'no tropical cyclone wind signal',  # Covers "is currently in effect", etc.
+            'no tcws',  # Abbreviation variant
         ]
         if any(phrase in signal_section_lower for phrase in no_signal_phrases):
             return result
