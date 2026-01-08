@@ -27,8 +27,8 @@ import argparse
 
 # Configuration
 TARGET_URL = "https://www.pagasa.dost.gov.ph/weather/weather-advisory"
-WAYBACK_API_URL = "http://archive.org/wayback/available"
-WAYBACK_CDX_API = "http://web.archive.org/cdx/search/cdx"
+WAYBACK_API_URL = "https://archive.org/wayback/available"
+WAYBACK_CDX_API = "https://web.archive.org/cdx/search/cdx"
 OUTPUT_DIR = Path(__file__).parent / "dataset" / "pdfs_advisory"
 
 
@@ -164,6 +164,19 @@ def fetch_snapshot_html(snapshot_url):
         return None
 
 
+def _has_advisory_classes(class_attr):
+    """
+    Check if element has required advisory classes.
+    
+    Args:
+        class_attr: Class attribute value
+        
+    Returns:
+        True if element has all required classes
+    """
+    return class_attr and 'col-md-12' in class_attr and 'article-content' in class_attr and 'weather-advisory' in class_attr
+
+
 def extract_pdfs_from_advisory_elements(html_content, base_url):
     """
     Extract PDF links from elements with class "col-md-12 article-content weather-advisory".
@@ -181,7 +194,7 @@ def extract_pdfs_from_advisory_elements(html_content, base_url):
     pdf_urls = []
     
     # Find all elements with the specified classes
-    advisory_elements = soup.find_all('div', class_=lambda x: x and 'col-md-12' in x and 'article-content' in x and 'weather-advisory' in x)
+    advisory_elements = soup.find_all('div', class_=_has_advisory_classes)
     
     if not advisory_elements:
         print("[WARNING] No elements found with class 'col-md-12 article-content weather-advisory'")
@@ -202,10 +215,14 @@ def extract_pdfs_from_advisory_elements(html_content, base_url):
             href = link.get('href', '')
             
             # Remove Wayback Machine wrapper if present
-            if 'web.archive.org' in href and '/http' in href:
-                parts = href.split('/http')
-                if len(parts) > 1:
-                    href = 'http' + parts[-1]
+            if 'web.archive.org' in href and ('/http://' in href or '/https://' in href):
+                # Split on /http:// or /https://
+                for protocol in ['/https://', '/http://']:
+                    if protocol in href:
+                        parts = href.split(protocol)
+                        if len(parts) > 1:
+                            href = protocol[1:] + parts[-1]  # Remove leading slash
+                        break
             
             # Check if it's a PDF link
             if href.endswith('.pdf') or '.pdf' in href.lower():
@@ -239,7 +256,7 @@ def download_pdf(pdf_url, output_dir, timestamp=None):
         filename = os.path.basename(parsed_url.path)
         
         # Clean filename
-        if not filename or filename == '' or not filename.endswith('.pdf'):
+        if not filename or not filename.endswith('.pdf'):
             filename = f"advisory_{timestamp or datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
         
         # Add timestamp prefix if provided
