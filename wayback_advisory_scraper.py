@@ -215,7 +215,8 @@ def extract_pdfs_from_advisory_elements(html_content, base_url):
             href = link.get('href', '')
             
             # Remove Wayback Machine wrapper if present (matches pattern in scrape_bulletin.py)
-            if 'web.archive.org' in href:
+            # Check for proper Wayback Machine URL format to prevent URL spoofing
+            if href.startswith('http://web.archive.org/') or href.startswith('https://web.archive.org/'):
                 parts = href.split('/http')
                 if len(parts) > 1:
                     href = 'http' + parts[-1]
