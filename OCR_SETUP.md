@@ -2,42 +2,101 @@
 
 This guide explains how to install OCR support for processing image-based/scanned PDFs with the advisory scraper.
 
-## Quick Start
+## Two OCR Options
 
-### 1. Install Python Dependencies
+The script supports **two OCR methods**:
+
+### Option 1: EasyOCR (Recommended for No Admin Rights) ✅
+
+**Pure Python library - no system installation needed!**
 
 ```bash
-# Install all dependencies including OCR support
-pip install -r requirements.txt
+pip install easyocr pdf2image
 ```
 
-Or install OCR libraries separately:
+**Pros:**
+- ✅ No system-level installation required
+- ✅ Works without admin/sudo permissions
+- ✅ Easy to install on any platform
+- ✅ Good accuracy
+
+**Cons:**
+- ⚠️ Slower than Tesseract (first run downloads model ~100MB)
+- ⚠️ Uses more memory
+
+**Best for:** Users without admin rights, Windows users, quick setup
+
+---
+
+### Option 2: Tesseract (Faster, Requires System Package)
+
+```bash
+# Step 1: Install Python library
+pip install pytesseract pdf2image
+
+# Step 2: Install system package (requires admin/sudo)
+# See platform-specific instructions below
+```
+
+**Pros:**
+- ✅ Faster processing
+- ✅ Lower memory usage
+- ✅ Mature, well-tested
+
+**Cons:**
+- ⚠️ Requires system-level installation
+- ⚠️ Needs admin/sudo permissions
+
+**Best for:** Users with admin rights, production environments
+
+---
+
+## Installation Instructions
+
+### Option 1: EasyOCR (No System Install)
+
+```bash
+# Install Python dependencies
+pip install easyocr pdf2image
+
+# That's it! No system package needed.
+```
+
+**Verify installation:**
+```bash
+python -c "import easyocr; print('EasyOCR: OK')"
+python -c "from pdf2image import convert_from_path; print('pdf2image: OK')"
+```
+
+---
+
+### Option 2: Tesseract (With System Package)
+
+#### Step 1: Install Python Dependencies
 
 ```bash
 pip install pytesseract pdf2image
 ```
 
-### 2. Install Tesseract OCR Engine (System Package)
+#### Step 2: Install Tesseract OCR Engine (System Package)
 
-The Tesseract OCR engine must be installed as a system package:
-
-#### Ubuntu/Debian/WSL
+##### Ubuntu/Debian/WSL
 ```bash
 sudo apt-get update
 sudo apt-get install tesseract-ocr
 ```
 
-#### macOS
+##### macOS
 ```bash
 brew install tesseract
 ```
 
-#### Windows
+##### Windows
 1. Download the installer from: https://github.com/UB-Mannheim/tesseract/wiki
 2. Run the installer
 3. Add Tesseract to your system PATH
 
-### 3. Verify Installation
+#### Step 3: Verify Installation
 
 Test that OCR is working:
 

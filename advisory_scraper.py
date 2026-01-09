@@ -33,13 +33,29 @@ import pandas as pd
 import time
 
 # Optional OCR imports
+OCR_AVAILABLE = False
+OCR_METHOD = None
+
+# Try pytesseract first (requires system tesseract)
 try:
     from pdf2image import convert_from_path
     import pytesseract
     from PIL import Image
     OCR_AVAILABLE = True
+    OCR_METHOD = 'tesseract'
 except ImportError:
-    OCR_AVAILABLE = False
+    pass
+
+# Try easyocr as fallback (pure Python, no system install needed)
+if not OCR_AVAILABLE:
+    try:
+        import easyocr
+        from pdf2image import convert_from_path
+        from PIL import Image
+        OCR_AVAILABLE = True
+        OCR_METHOD = 'easyocr'
+    except ImportError:
+        pass
 
 
 # Configuration
@@ -182,7 +198,8 @@ class RainfallAdvisoryExtractor:
                     return self.extract_tables_with_ocr(pdf_path)
                 elif not has_text and not OCR_AVAILABLE:
                     print("[WARNING] PDF is image-based but OCR is not available")
-                    print("[INFO] Install OCR support: pip install pytesseract pdf2image")
+                    print("[INFO] Option 1 (no system install): pip install easyocr pdf2image")
+                    print("[INFO] Option 2 (faster, needs system): pip install pytesseract pdf2image + tesseract-ocr")
                     return []
                 
                 # Extract tables from first page
@@ -218,6 +235,7 @@ class RainfallAdvisoryExtractor:
         
         try:
             # Convert PDF to images
+            print(f"[OCR] Using {OCR_METHOD} method...")
             print("[OCR] Converting PDF to images...")
             images = convert_from_path(pdf_path, dpi=300, first_page=1, last_page=1)
             
@@ -226,7 +244,18 @@ class RainfallAdvisoryExtractor:
             
             # Extract text from first page using OCR
             print("[OCR] Extracting text from image...")
-            text = pytesseract.image_to_string(images[0], lang='eng')
+            
+            if OCR_METHOD == 'tesseract':
+                # Use pytesseract
+                text = pytesseract.image_to_string(images[0], lang='eng')
+            elif OCR_METHOD == 'easyocr':
+                # Use easyocr (pure Python, no system install)
+                reader = easyocr.Reader(['en'], gpu=False, verbose=False)
+                result = reader.readtext(images[0], detail=0)
+                text = '\n'.join(result)
+            else:
+                print("[ERROR] Unknown OCR method")
+                return []
             
             if not text.strip():
                 print("[WARNING] OCR extracted no text")
@@ -532,7 +561,7 @@ Examples:
     
     parser.add_argument('source', nargs='?', help='PDF file path or URL (auto-detected)')
     parser.add_argument('--random', action='store_true', help='Extract from random PDF in dataset')
-    parser.add_argument('--ocr', action='store_true', help='Use OCR for image-based PDFs (requires pytesseract and pdf2image)')
+    parser.add_argument('--ocr', action='store_true', help='Use OCR for image-based PDFs (easyocr or pytesseract+pdf2image)')
     parser.add_argument('--json', action='store_true', help='Output only JSON (no progress messages)')
     
     args = parser.parse_args()
@@ -540,8 +569,12 @@ Examples:
     # Check OCR availability if requested
     if args.ocr and not OCR_AVAILABLE:
         print("[ERROR] OCR requested but libraries not available")
-        print("[INFO] Install with: pip install pytesseract pdf2image")
-        print("[INFO] Also install tesseract-ocr system package")
+        print("\n[INFO] Two OCR options:")
+        print("  Option 1 (no system install needed):")
+        print("    pip install easyocr pdf2image")
+        print("\n  Option 2 (faster, requires system package):")
+        print("    pip install pytesseract pdf2image")
+        print("    + Install tesseract-ocr system package")
         return 1
     
     result = None

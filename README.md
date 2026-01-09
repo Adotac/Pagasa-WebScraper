@@ -78,19 +78,29 @@ python advisory_scraper.py --json --random
 |----------|------|-------------|
 | `source` | string | PDF file path or URL (auto-detected, optional) |
 | `--random` | flag | Extract from random PDF in dataset |
-| `--ocr` | flag | Use OCR for image-based PDFs (requires pytesseract & pdf2image) |
+| `--ocr` | flag | Use OCR for image-based PDFs (easyocr or pytesseract) |
 | `--json` | flag | Output only JSON (no progress messages) |
 
-**OCR Setup (Optional):**
+**OCR Setup (Optional - Two Options):**
+
+**Option 1 - EasyOCR (No system install needed):**
 ```bash
-# Install Python OCR libraries
+pip install easyocr pdf2image
+# That's it! Works without admin rights.
+```
+
+**Option 2 - Tesseract (Faster, needs system package):**
+```bash
+# Install Python libraries
 pip install pytesseract pdf2image
 
-# Install Tesseract OCR engine (system package)
+# Install Tesseract OCR engine (system package - requires admin)
 # Ubuntu/Debian: sudo apt-get install tesseract-ocr
 # macOS: brew install tesseract
 # Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
 ```
+
+See `OCR_SETUP.md` for detailed comparison and instructions.
 
 **Output Format:**
 ```json
