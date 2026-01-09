@@ -11,7 +11,11 @@ The script supports **two OCR methods**:
 **Pure Python library - no system installation needed!**
 
 ```bash
-pip install easyocr pdf2image
+# Quick install (Python 3.8.10 compatible)
+pip install -r requirements-ocr-easyocr.txt
+
+# OR install manually:
+# pip install easyocr pdf2image
 ```
 
 **Pros:**
@@ -33,6 +37,9 @@ pip install easyocr pdf2image
 ```bash
 # Step 1: Install Python library
 pip install pytesseract pdf2image
+
+# OR install from requirements file (Python 3.8.10 compatible)
+pip install -r requirements-ocr-tesseract.txt
 
 # Step 2: Install system package (requires admin/sudo)
 # See platform-specific instructions below
@@ -56,8 +63,11 @@ pip install pytesseract pdf2image
 ### Option 1: EasyOCR (No System Install)
 
 ```bash
-# Install Python dependencies
-pip install easyocr pdf2image
+# Install Python dependencies (Python 3.8.10 compatible)
+pip install -r requirements-ocr-easyocr.txt
+
+# OR install manually:
+# pip install easyocr pdf2image
 
 # That's it! No system package needed.
 ```

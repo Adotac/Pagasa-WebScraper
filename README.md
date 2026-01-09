@@ -85,14 +85,15 @@ python advisory_scraper.py --json --random
 
 **Option 1 - EasyOCR (No system install needed):**
 ```bash
-pip install easyocr pdf2image
-# That's it! Works without admin rights.
+# Python 3.8.10 compatible
+pip install -r requirements-ocr-easyocr.txt
+# Works without admin rights!
 ```
 
 **Option 2 - Tesseract (Faster, needs system package):**
 ```bash
-# Install Python libraries
-pip install pytesseract pdf2image
+# Python 3.8.10 compatible
+pip install -r requirements-ocr-tesseract.txt
 
 # Install Tesseract OCR engine (system package - requires admin)
 # Ubuntu/Debian: sudo apt-get install tesseract-ocr
