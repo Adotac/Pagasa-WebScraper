@@ -44,21 +44,64 @@ class RainfallAdvisoryExtractor:
         pass
     
     def parse_locations_text(self, text: str) -> List[str]:
-        """Parse location text into individual locations"""
+        """
+        Parse location text into individual locations.
+        Handles directional modifiers and "and" connectors properly.
+        """
         if not text or text.strip() == '-' or text.strip() == '':
             return []
         
-        # Split by comma and newline
-        locations = re.split(r'[,\n]+', text)
+        # Directional modifiers that should be combined with following word
+        directional_modifiers = ['Northern', 'Southern', 'Eastern', 'Western', 'Central', 
+                                 'North', 'South', 'East', 'West', 'Greater']
         
-        # Clean each location
-        cleaned = []
-        for loc in locations:
-            loc = loc.strip()
-            if loc and loc != '-':
-                cleaned.append(loc)
+        # Split by comma and newline first
+        parts = re.split(r'[,\n]+', text)
         
-        return cleaned
+        # Process each part
+        locations = []
+        i = 0
+        while i < len(parts):
+            part = parts[i].strip()
+            
+            # Skip empty parts, dashes, or standalone "and"
+            if not part or part == '-' or part.lower() == 'and':
+                i += 1
+                continue
+            
+            # Check if this is a directional modifier that should be combined with next part
+            if part in directional_modifiers and i + 1 < len(parts):
+                next_part = parts[i + 1].strip()
+                # Skip "and" in between if present
+                if next_part.lower() == 'and' and i + 2 < len(parts):
+                    next_part = parts[i + 2].strip()
+                    i += 1  # Skip the "and"
+                
+                # Combine directional with location name
+                if next_part and next_part != '-' and next_part.lower() != 'and':
+                    combined = f"{part} {next_part}"
+                    locations.append(combined)
+                    i += 2  # Skip both parts
+                    continue
+                else:
+                    # Standalone directional, keep as is (unusual but possible)
+                    locations.append(part)
+                    i += 1
+                    continue
+            
+            # Handle parts that start with "and" (e.g., "and Guimaras")
+            if part.lower().startswith('and '):
+                actual_location = part[4:].strip()  # Remove "and " prefix
+                if actual_location and actual_location != '-':
+                    locations.append(actual_location)
+                i += 1
+                continue
+            
+            # Regular location - add it
+            locations.append(part)
+            i += 1
+        
+        return locations
     
 
     
