@@ -34,40 +34,21 @@ python verify_install.py
 
 ## Scripts & Usage
 
-### 1. Wayback Machine Advisory Scraper: `wayback_advisory_scraper.py` ⭐ **NEW**
+### 1. Weather Advisory Scraper: `advisory_scraper.py` ⭐ **NEW**
 
-Scrape weather advisory PDFs from archived PAGASA pages using the Wayback Machine API.
+Scrape weather advisory PDFs directly from PAGASA's live weather advisory page.
 
 **Basic Usage:**
 ```bash
-# Get PDFs from latest snapshot
-python wayback_advisory_scraper.py
-
-# Get PDFs from all available snapshots
-python wayback_advisory_scraper.py --all
-
-# Get PDFs from latest 10 snapshots
-python wayback_advisory_scraper.py --all --limit 10
-
-# Get PDFs from all 2024 snapshots
-python wayback_advisory_scraper.py --all --year 2024
+python advisory_scraper.py
 ```
 
-**Arguments:**
-
-| Argument | Type | Description |
-|----------|------|-------------|
-| `--all` | flag | Process all available snapshots (not just latest) |
-| `--limit` | integer | Maximum number of snapshots to process |
-| `--year` | integer | Filter snapshots by year (e.g., 2024) |
-
 **Features:**
-- ✓ Uses Wayback Machine public API to find archived snapshots
+- ✓ Fetches live page from PAGASA website
 - ✓ Headless HTML parsing with BeautifulSoup
 - ✓ Targets elements with class "col-md-12 article-content weather-advisory"
 - ✓ Automatically extracts and downloads PDFs
-- ✓ Saves PDFs to `dataset/pdfs_advisory/` with timestamp prefixes
-- ✓ Handles Wayback Machine URL unwrapping
+- ✓ Saves PDFs to `dataset/pdfs_advisory/`
 - ✓ Comprehensive error handling and progress logging
 - ✓ Avoids duplicate downloads
 - ✓ Rate limiting to be respectful to servers
@@ -83,11 +64,10 @@ dataset/pdfs_advisory/
 ```
 
 **How It Works:**
-1. Queries Wayback Machine API for snapshots of the target URL
-2. Fetches HTML content from archived snapshots
-3. Parses HTML to find weather advisory elements
-4. Extracts PDF links from those elements
-5. Downloads PDFs with timestamp prefixes for easy tracking
+1. Fetches HTML content from live PAGASA weather advisory page
+2. Parses HTML to find weather advisory elements
+3. Extracts PDF links from those elements
+4. Downloads PDFs to the output directory
 
 ---
 
@@ -468,7 +448,7 @@ bin/
 ├── extracted_typhoon_data.json      # Batch extraction output
 └── PAGASA.html                      # Sample HTML from wayback machine
 
-wayback_advisory_scraper.py          # Wayback Machine advisory scraper
+advisory_scraper.py                  # Weather advisory PDF scraper
 scrape_bulletin.py                   # Web scraper for bulletin page
 typhoon_extraction.py                # Main extraction engine
 analyze_pdf.py                       # Single PDF analysis tool
