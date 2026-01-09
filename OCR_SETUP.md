@@ -1,6 +1,6 @@
 # OCR Setup Guide
 
-This guide explains how to install OCR support for processing image-based/scanned PDFs with the advisory scraper.
+This guide explains how to use OCR support for processing image-based/scanned PDFs with the advisory scraper.
 
 ## EasyOCR - Pure Python OCR
 
@@ -9,11 +9,8 @@ The script uses **EasyOCR** for OCR functionality - a pure Python library that r
 **Pure Python library - no system installation needed!**
 
 ```bash
-# Quick install (Python 3.8.10 compatible)
-pip install -r requirements-ocr-easyocr.txt
-
-# OR install manually:
-pip install easyocr pdf2image
+# Install all dependencies including OCR support (Python 3.8.10 compatible)
+pip install -r requirements.txt
 ```
 
 **Pros:**
@@ -33,26 +30,16 @@ pip install easyocr pdf2image
 
 ## Installation Steps
 
-### Step 1: Install Core Dependencies
+### Install All Dependencies
 
-First, install the core dependencies:
 ```bash
+# Install all core + OCR dependencies (Python 3.8.10 compatible)
 pip install -r requirements.txt
-```
-
-### Step 2: Install EasyOCR
-
-```bash
-# Install Python dependencies (Python 3.8.10 compatible)
-pip install -r requirements-ocr-easyocr.txt
-
-# OR install manually:
-pip install easyocr pdf2image
 
 # That's it! No system package needed.
 ```
 
-### Step 3: Verify Installation
+### Verify Installation
 
 **Verify installation:**
 ```bash
@@ -97,4 +84,4 @@ The advisory scraper works fine without OCR for regular text-based PDFs. OCR is 
 - Image-based PDFs
 - PDFs without a text layer
 
-If you don't need OCR support, you can skip this installation and the script will work normally for text-based PDFs.
+If you don't need OCR support, the script will work normally for text-based PDFs.

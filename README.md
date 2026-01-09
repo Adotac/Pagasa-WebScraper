@@ -81,16 +81,11 @@ python advisory_scraper.py --json --random
 | `--ocr` | flag | Use OCR for image-based PDFs (requires easyocr) |
 | `--json` | flag | Output only JSON (no progress messages) |
 
-**OCR Setup (Optional):**
+**OCR Support:**
 
-**EasyOCR - Pure Python, no system install:**
-```bash
-# Python 3.8.10 compatible
-pip install -r requirements-ocr-easyocr.txt
-# Works without admin rights!
-```
+OCR dependencies (EasyOCR) are included in `requirements.txt`. First run will download ~100MB language model.
 
-See `OCR_SETUP.md` for detailed instructions.
+See `OCR_SETUP.md` for detailed instructions and troubleshooting.
 
 **Output Format:**
 ```json

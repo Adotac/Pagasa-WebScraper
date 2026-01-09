@@ -7,20 +7,16 @@ pillow>=8.0.0,<11.0.0
 pypdfium2>=4.0.0,<5.0.0
 beautifulsoup4>=4.9.0,<5.0.0
 
-# Optional OCR dependencies (for image-based PDFs)
-# Choose ONE of the following options:
-
-# Option 1: EasyOCR (pure Python, no system install needed)
+# OCR dependencies (for image-based PDFs)
+# EasyOCR - pure Python solution, no system installation required
 # Recommended if you don't have admin rights
-# Python 3.8.10 compatible versions:
-# easyocr>=1.4.0,<1.8.0
-# pdf2image>=1.14.0,<2.0.0
-# torch>=1.9.0,<2.0.0  (required by easyocr)
-# torchvision>=0.10.0,<0.14.0  (required by easyocr)
-# opencv-python-headless>=4.5.0,<5.0.0  (required by easyocr)
+# Python 3.8.10 compatible versions
+easyocr>=1.4.0,<1.8.0
+pdf2image>=1.14.0,<2.0.0
+torch>=1.9.0,<2.0.0
+torchvision>=0.10.0,<0.14.0
+opencv-python-headless>=4.5.0,<5.0.0
 
-# Option 2: Tesseract (faster, requires system tesseract-ocr package)
-# Python 3.8.10 compatible versions:
-# pytesseract>=0.3.8,<1.0.0
-# pdf2image>=1.14.0,<2.0.0
+# Note: First run will download ~100MB language model
+# OCR is optional - only needed for scanned/image-based PDFs
 
