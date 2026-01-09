@@ -13,7 +13,7 @@ Usage:
     python advisory_scraper.py "file.pdf"         # Test specific PDF
     python advisory_scraper.py "http://..."       # Extract from URL
     
-Output: JSON with rainfall warnings categorized by island groups
+Output: JSON with rainfall warnings as lists of locations per warning level
 """
 
 import requests
@@ -29,97 +29,19 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from typing import Dict, List, Optional, Tuple
 import pdfplumber
-import pandas as pd
 import time
 
 
 # Configuration
 TARGET_URL = "https://www.pagasa.dost.gov.ph/weather/weather-advisory"
 OUTPUT_DIR = Path(__file__).parent / "dataset" / "pdfs_advisory"
-CONSOLIDATED_CSV = Path(__file__).parent / "bin" / "consolidated_locations.csv"
-
-
-class LocationMatcher:
-    """Matches location names from PDFs to Philippine administrative divisions"""
-    
-    REGION_MAPPING = {
-        'Ilocos Region': 'Luzon',
-        'Cagayan Valley': 'Luzon',
-        'Central Luzon': 'Luzon',
-        'CALABARZON': 'Luzon',
-        'MIMAROPA': 'Luzon',
-        'Bicol Region': 'Luzon',
-        'Western Visayas': 'Visayas',
-        'Central Visayas': 'Visayas',
-        'Eastern Visayas': 'Visayas',
-        'Zamboanga Peninsula': 'Mindanao',
-        'Northern Mindanao': 'Mindanao',
-        'Davao Region': 'Mindanao',
-        'SOCCSKSARGEN': 'Mindanao',
-        'Caraga': 'Mindanao',
-        'Bangsamoro': 'Mindanao',
-        'BARMM': 'Mindanao',
-        'National Capital Region': 'Luzon',
-        'NCR': 'Luzon',
-        'Cordillera Administrative Region': 'Luzon',
-        'CAR': 'Luzon',
-    }
-    
-    def __init__(self, consolidated_csv_path: str = None):
-        """Load consolidated locations mapping"""
-        if consolidated_csv_path is None:
-            consolidated_csv_path = str(CONSOLIDATED_CSV)
-        
-        self.locations_df = pd.read_csv(consolidated_csv_path)
-        self.priority = {'Province': 5, 'Region': 4, 'City': 3, 'Municipality': 2, 'Barangay': 1}
-        
-        self.location_dict = {}
-        self.island_groups_dict = {'Luzon': set(), 'Visayas': set(), 'Mindanao': set()}
-        
-        grouped = {}
-        for _, row in self.locations_df.iterrows():
-            name_key = row['location_name'].lower()
-            priority = self.priority.get(row['location_type'], 0)
-            island_group = row['island_group']
-            
-            if name_key not in grouped:
-                grouped[name_key] = {'priority': priority, 'island_group': island_group}
-            elif priority > grouped[name_key]['priority']:
-                grouped[name_key] = {'priority': priority, 'island_group': island_group}
-        
-        for name_key, info in grouped.items():
-            self.location_dict[name_key] = info['island_group']
-            if info['island_group'] in self.island_groups_dict:
-                self.island_groups_dict[info['island_group']].add(name_key)
-    
-    def find_island_group(self, location_name: str) -> Optional[str]:
-        """Find which island group a location belongs to"""
-        if not location_name:
-            return None
-        
-        name_lower = location_name.lower().strip()
-        
-        if name_lower in self.location_dict:
-            return self.location_dict[name_lower]
-        
-        for known_location, island_group in self.location_dict.items():
-            if name_lower in known_location or known_location in name_lower:
-                return island_group
-        
-        for region_name, island_group in self.REGION_MAPPING.items():
-            if region_name.lower() == name_lower:
-                return island_group
-            if region_name.lower() in name_lower or name_lower in region_name.lower():
-                return island_group
-        
-        return None
 
 
 class RainfallAdvisoryExtractor:
     """Extracts rainfall advisory data from PAGASA PDFs"""
     
     def __init__(self):
-        self.location_matcher = LocationMatcher()
+        pass
     
     def parse_locations_text(self, text: str) -> List[str]:
         """Parse location text into individual locations"""
@@ -138,23 +60,7 @@ class RainfallAdvisoryExtractor:
         
         return cleaned
     
-    def categorize_locations_by_island(self, locations: List[str]) -> Dict[str, List[str]]:
-        """Categorize locations by island groups"""
-        island_groups = {
-            'Luzon': [],
-            'Visayas': [],
-            'Mindanao': [],
-            'Other': []
-        }
-        
-        for location in locations:
-            island = self.location_matcher.find_island_group(location)
-            if island and island in island_groups:
-                island_groups[island].append(location)
-            else:
-                island_groups['Other'].append(location)
-        
-        return island_groups
+
     
     def extract_rainfall_tables(self, pdf_path: str) -> List[List[List]]:
         """Extract all rainfall forecast tables from PDF"""
@@ -205,9 +111,9 @@ class RainfallAdvisoryExtractor:
         Returns:
             Dict with structure:
             {
-                'red': {'Luzon': [...], 'Visayas': [...], 'Mindanao': [...], 'Other': [...]},
-                'orange': {...},
-                'yellow': {...}
+                'red': [...],
+                'orange': [...],
+                'yellow': [...]
             }
         """
         tables = self.extract_rainfall_tables(pdf_path)
@@ -253,41 +159,26 @@ class RainfallAdvisoryExtractor:
                 all_locations = list(set(today_locs + tomorrow_locs))
                 
                 if all_locations:
-                    # Categorize by island groups
-                    categorized = self.categorize_locations_by_island(all_locations)
-                    
-                    # Merge with existing warnings
-                    for island, locs in categorized.items():
-                        if locs:
-                            warnings[warning_level][island].extend(locs)
+                    # Add locations directly to warning level
+                    warnings[warning_level].extend(all_locations)
         
         # Remove duplicates and sort
         for level in warnings:
-            for island in warnings[level]:
-                warnings[level][island] = sorted(list(set(warnings[level][island])))
+            warnings[level] = sorted(list(set(warnings[level])))
         
         return warnings
     
     def _empty_warnings(self) -> Dict:
         """Return empty warnings structure"""
         return {
-            'red': {'Luzon': [], 'Visayas': [], 'Mindanao': [], 'Other': []},
-            'orange': {'Luzon': [], 'Visayas': [], 'Mindanao': [], 'Other': []},
-            'yellow': {'Luzon': [], 'Visayas': [], 'Mindanao': [], 'Other': []}
+            'red': [],
+            'orange': [],
+            'yellow': []
         }
     
     def format_for_output(self, warnings: Dict) -> Dict:
-        """Format warnings for JSON output - convert lists to comma-separated strings or null"""
-        formatted = {}
-        for level in warnings:
-            formatted[level] = {}
-            for island in warnings[level]:
-                locs = warnings[level][island]
-                if locs:
-                    formatted[level][island] = ', '.join(locs)
-                else:
-                    formatted[level][island] = None
-        return formatted
+        """Format warnings for JSON output - return lists directly"""
+        return warnings
 
 
 def setup_output_directory():
