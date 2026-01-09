@@ -55,8 +55,14 @@ class RainfallAdvisoryExtractor:
         directional_modifiers = ['Northern', 'Southern', 'Eastern', 'Western', 'Central', 
                                  'North', 'South', 'East', 'West', 'Greater']
         
-        # Split by comma and newline first
-        parts = re.split(r'[,\n]+', text)
+        # Replace newlines with spaces first to keep multi-word locations together
+        # Then split by commas only
+        text = text.replace('\n', ' ').replace('\r', ' ')
+        # Normalize multiple spaces to single space
+        text = ' '.join(text.split())
+        
+        # Split by comma only
+        parts = [p.strip() for p in text.split(',')]
         
         # Process each part
         locations = []
