@@ -1,87 +1,31 @@
 # OCR Setup Guide
 
-This guide explains how to use OCR support for processing image-based/scanned PDFs with the advisory scraper.
+**NOTE: OCR support has been removed from this project to eliminate heavy dependencies like PyTorch (~500MB).**
 
-## EasyOCR - Pure Python OCR
+The `advisory_scraper.py` script now only works with text-based PDFs (PDFs with extractable text layers).
 
-The script uses **EasyOCR** for OCR functionality - a pure Python library that requires no system installation.
+## What This Means
 
-**Pure Python library - no system installation needed!**
+- ✅ **Text-based PDFs**: Work perfectly (most PAGASA PDFs are text-based)
+- ❌ **Scanned/Image PDFs**: Not supported
+- ✅ **No heavy dependencies**: Installation is much faster and lighter
 
-```bash
-# Install all dependencies including OCR support (Python 3.8.10 compatible)
-pip install -r requirements.txt
-```
+## If You Need OCR
 
-**Pros:**
-- ✅ No system-level installation required
-- ✅ Works without admin/sudo permissions
-- ✅ Easy to install on any platform (Windows, Linux, macOS)
-- ✅ Good accuracy
-- ✅ Supports multiple languages
+If you encounter scanned/image-based PDFs that cannot be extracted, you have a few options:
 
-**Cons:**
-- ⚠️ First run downloads model (~100MB)
-- ⚠️ Uses more memory than text-based PDF extraction
+1. **Convert PDF to text-based format** - Use Adobe Acrobat or similar tools to add a text layer
+2. **Use online OCR services** - Upload to services like OCR.space or similar
+3. **Install separate OCR tools** - Use dedicated OCR software outside of this project
 
-**Perfect for:** Users without admin rights, Windows users, quick setup
-
----
-
-## Installation Steps
-
-### Install All Dependencies
+## How to Check if a PDF is Text-Based
 
 ```bash
-# Install all core + OCR dependencies (Python 3.8.10 compatible)
-pip install -r requirements.txt
-
-# That's it! No system package needed.
+python advisory_scraper.py "your-file.pdf"
 ```
 
-### Verify Installation
+If you see:
+- ✅ `[INFO] Processing X table(s)` - PDF is text-based and extraction works
+- ❌ `[WARNING] PDF is image-based (scanned document) with no extractable text` - PDF cannot be processed
 
-**Verify installation:**
-```bash
-python -c "import easyocr; print('EasyOCR: OK')"
-python -c "from pdf2image import convert_from_path; print('pdf2image: OK')"
-```
-
----
-
-## Usage
-
-Once installed, the advisory scraper will automatically use OCR when it detects image-based PDFs:
-
-```bash
-# Auto-detects and uses OCR if needed
-python advisory_scraper.py "scanned-document.pdf"
-
-# Force OCR mode
-python advisory_scraper.py --ocr "document.pdf"
-```
-
-## Troubleshooting
-
-### "Unable to get page count" error (Windows)
-- Install poppler for Windows: https://github.com/oschwartz10612/poppler-windows/releases
-- Add poppler's bin directory to your system PATH
-
-### EasyOCR model download issues
-- EasyOCR downloads models (~100MB) on first run
-- Ensure you have a stable internet connection
-- Models are cached in `~/.EasyOCR/` directory
-
-### Memory issues
-- EasyOCR may use significant memory for large images
-- Consider reducing PDF DPI if experiencing issues
-- Close other applications to free up memory
-
-## Optional: OCR is Not Required
-
-The advisory scraper works fine without OCR for regular text-based PDFs. OCR is only needed for:
-- Scanned documents
-- Image-based PDFs
-- PDFs without a text layer
-
-If you don't need OCR support, the script will work normally for text-based PDFs.
+Most PAGASA weather advisory PDFs are text-based and will work without any issues.

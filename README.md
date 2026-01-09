@@ -52,17 +52,12 @@ python advisory_scraper.py "dataset/pdfs_advisory/file.pdf"
 # Extract from PDF URL (auto-detects URL)
 python advisory_scraper.py "https://example.com/advisory.pdf"
 
-# Use OCR for image-based PDFs
-python advisory_scraper.py --ocr "scanned-document.pdf"
-
 # JSON-only output
 python advisory_scraper.py --json --random
 ```
 
 **Features:**
-- ✓ **PDF extraction using pdfplumber** - Parses rainfall forecast tables
-- ✓ **OCR support (optional)** - Handles image-based/scanned PDFs with EasyOCR
-- ✓ **Auto OCR detection** - Automatically tries OCR when PDF has no text layer
+- ✓ **PDF extraction using pdfplumber** - Parses rainfall forecast tables from text-based PDFs
 - ✓ **3 warning levels** - Red (>200mm), Orange (100-200mm), Yellow (50-100mm)
 - ✓ **Island group categorization** - Luzon, Visayas, Mindanao, Other
 - ✓ **Location matching** - Uses consolidated locations database
@@ -78,14 +73,9 @@ python advisory_scraper.py --json --random
 |----------|------|-------------|
 | `source` | string | PDF file path or URL (auto-detected, optional) |
 | `--random` | flag | Extract from random PDF in dataset |
-| `--ocr` | flag | Use OCR for image-based PDFs (requires easyocr) |
 | `--json` | flag | Output only JSON (no progress messages) |
 
-**OCR Support:**
-
-OCR dependencies (EasyOCR) are included in `requirements.txt`. First run will download ~100MB language model.
-
-See `OCR_SETUP.md` for detailed instructions and troubleshooting.
+**Note:** This script only works with text-based PDFs (not scanned images). Most PAGASA PDFs are text-based. See `OCR_SETUP.md` for more info.
 
 **Output Format:**
 ```json

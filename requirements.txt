@@ -7,16 +7,5 @@ pillow>=8.0.0,<11.0.0
 pypdfium2>=4.0.0,<5.0.0
 beautifulsoup4>=4.9.0,<5.0.0
 
-# OCR dependencies (for image-based PDFs)
-# EasyOCR - pure Python solution, no system installation required
-# Recommended if you don't have admin rights
-# Python 3.8.10 compatible versions
-easyocr>=1.4.0,<1.8.0
-pdf2image>=1.14.0,<2.0.0
-torch>=1.9.0,<2.0.0
-torchvision>=0.10.0,<0.14.0
-opencv-python-headless>=4.5.0,<5.0.0
-
-# Note: First run will download ~100MB language model
-# OCR is optional - only needed for scanned/image-based PDFs
+# Note: This script only works with text-based PDFs (not scanned images)
 
