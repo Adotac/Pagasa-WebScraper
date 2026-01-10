@@ -34,7 +34,82 @@ python verify_install.py
 
 ## Scripts & Usage
 
-### 1. Web Scraper: `scrape_bulletin.py`
+### 1. Weather Advisory Extractor: `advisory_scraper.py` ⭐ **NEW**
+
+Extract rainfall warning data from PAGASA weather advisory PDFs with automatic categorization by island groups.
+
+**Basic Usage:**
+```bash
+# Scrape from live URL and extract
+python advisory_scraper.py
+
+# Test with random PDF from dataset
+python advisory_scraper.py --random
+
+# Test with specific PDF (auto-detects file path)
+python advisory_scraper.py "dataset/pdfs_advisory/file.pdf"
+
+# Extract from PDF URL (auto-detects URL)
+python advisory_scraper.py "https://example.com/advisory.pdf"
+
+# JSON-only output
+python advisory_scraper.py --json --random
+```
+
+**Features:**
+- ✓ **PDF extraction using pdfplumber** - Parses rainfall forecast tables from text-based PDFs
+- ✓ **3 warning levels** - Red (>200mm), Orange (100-200mm), Yellow (50-100mm)
+- ✓ **Island group categorization** - Luzon, Visayas, Mindanao, Other
+- ✓ **Location matching** - Uses consolidated locations database
+- ✓ **Auto-detection** - Automatically detects if input is URL or file path
+- ✓ **Multiple input modes** - Live URL, random, file path, or URL
+- ✓ **JSON output** - Structured data ready for processing
+- ✓ Fetches live page from PAGASA website
+- ✓ Automatically downloads PDFs to `dataset/pdfs_advisory/`
+
+**Arguments:**
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `source` | string | PDF file path or URL (auto-detected, optional) |
+| `--random` | flag | Extract from random PDF in dataset |
+| `--json` | flag | Output only JSON (no progress messages) |
+
+**Note:** This script only works with text-based PDFs (not scanned images). Most PAGASA PDFs are text-based. See `OCR_SETUP.md` for more info.
+
+**Output Format:**
+```json
+{
+  "source_file": "path/to/file.pdf",
+  "rainfall_warnings": {
+    "red": {
+      "Luzon": "Location1, Location2",
+      "Visayas": null,
+      "Mindanao": null,
+      "Other": null
+    },
+    "orange": {...},
+    "yellow": {...}
+  }
+}
+```
+
+**Target URL:**
+```
+https://www.pagasa.dost.gov.ph/weather/weather-advisory
+```
+
+**How It Works:**
+1. Fetches HTML from live PAGASA weather advisory page (or uses direct PDF path/URL)
+2. Extracts rainfall forecast table from PDF using pdfplumber
+3. Identifies warning levels by rainfall amounts (>200mm, 100-200mm, 50-100mm)
+4. Parses "Today" and "Tomorrow" columns for affected locations
+5. Categorizes locations by island groups using LocationMatcher
+6. Outputs structured JSON with warnings grouped by severity and region
+
+---
+
+### 2. Web Scraper: `scrape_bulletin.py`
 
 Extract PDF links from PAGASA Severe Weather Bulletin page (organized by typhoon).
 
@@ -92,7 +167,7 @@ Returns a 2D array where each sub-array contains PDF links for one typhoon:
 
 ---
 
-### 2. Main Pipeline: `main.py` ⭐ **NEW**
+### 3. Main Pipeline: `main.py` ⭐
 
 **Combines web scraping and PDF analysis in a single automated workflow.**
 
@@ -220,7 +295,7 @@ Found 1 typhoon(s):
 
 ---
 
-### 3. Analyze Single PDF: `analyze_pdf.py`
+### 4. Analyze Single PDF: `analyze_pdf.py`
 
 Analyze individual PAGASA PDF bulletins with accurate data extraction.
 
@@ -276,7 +351,7 @@ python analyze_pdf.py --random --low-cpu --metrics
 
 ---
 
-### 4. Batch Process All PDFs: `typhoon_extraction.py`
+### 5. Batch Process All PDFs: `typhoon_extraction.py`
 
 Extract data from all PDFs in the dataset directory.
 
@@ -311,7 +386,7 @@ python typhoon_extraction.py "dataset/pdfs" --output "results.json"
 
 ---
 
-### 5. Test Extraction Accuracy: `test_accuracy.py`
+### 6. Test Extraction Accuracy: `test_accuracy.py`
 
 Validate extraction accuracy by comparing against ground truth annotations.
 
@@ -356,7 +431,7 @@ python test_accuracy.py --detailed --metrics
 
 ---
 
-### 6. PDF Annotation GUI: `pdf_annotation_gui.py`
+### 7. PDF Annotation GUI: `pdf_annotation_gui.py`
 
 Interactive GUI for manually annotating PDFs with extracted JSON data.
 
@@ -399,6 +474,8 @@ dataset/
 ├── pdfs/                    # Source PDF bulletins
 │   └── pagasa-YY-TC##/
 │       └── PAGASA_YY-TC##_Name_TCTYPE#NUM.pdf
+├── pdfs_advisory/           # Weather advisory PDFs from Wayback Machine
+│   └── YYYYMMDDHHMMSS_advisory_name.pdf
 ├── pdfs_annotation/         # Ground truth annotations
 │   └── pagasa-YY-TC##/
 │       └── PAGASA_YY-TC##_Name_TCTYPE#NUM.json
@@ -409,6 +486,7 @@ bin/
 ├── extracted_typhoon_data.json      # Batch extraction output
 └── PAGASA.html                      # Sample HTML from wayback machine
 
+advisory_scraper.py                  # Weather advisory PDF scraper
 scrape_bulletin.py                   # Web scraper for bulletin page
 typhoon_extraction.py                # Main extraction engine
 analyze_pdf.py                       # Single PDF analysis tool
