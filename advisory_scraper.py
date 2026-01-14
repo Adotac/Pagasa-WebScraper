@@ -33,6 +33,9 @@ TARGET_URL = "https://www.pagasa.dost.gov.ph/weather/weather-advisory"
 WEB_ARCHIVE_URL_TEMPLATE = "https://web.archive.org/web/{timestamp}/https://www.pagasa.dost.gov.ph/weather/weather-advisory"
 CONSOLIDATED_LOCATIONS_PATH = Path(__file__).parent / "bin" / "consolidated_locations.csv"
 
+# Pattern matching constants
+PATTERN_SEARCH_WINDOW = 50  # Characters to search backward for pattern boundaries
+
 
 class RainfallAdvisoryExtractor:
     """Extracts rainfall advisory data from PAGASA HTML pages"""
@@ -110,7 +113,8 @@ class RainfallAdvisoryExtractor:
             
             # Check if this part contains "and Location1 Location2" pattern (column break)
             if part.lower().startswith('and '):
-                words = part[4:].strip().split()  # Remove "and " and split
+                AND_PREFIX = 'and '
+                words = part[len(AND_PREFIX):].strip().split()  # Remove "and " and split
                 
                 if len(words) >= 2:
                     # Check if first word(s) form a valid location
@@ -352,10 +356,13 @@ class RainfallAdvisoryExtractor:
             return warnings
         
         # Patterns for rainfall indicators
+        # Red warning: MUST have '>' symbol for values greater than 200mm
         # Matches: (>200 mm), (> 200 mm), >200 mm, > 200 mm
-        red_pattern = r'\(?\s*>?\s*200\s*mm\s*\)?'
+        red_pattern = r'\(?\s*>\s*200\s*mm\s*\)?'
+        # Orange warning: 100-200mm range
         # Matches: (100 - 200 mm), (100 – 200 mm), 100-200 mm
         orange_pattern = r'\(?\s*100\s*[-–]\s*200\s*mm\s*\)?'
+        # Yellow warning: 50-100mm range
         # Matches: (50 - 100 mm), (50 – 100 mm), 50-100 mm
         yellow_pattern = r'\(?\s*50\s*[-–]\s*100\s*mm\s*\)?'
         
@@ -383,7 +390,7 @@ class RainfallAdvisoryExtractor:
                 # Find the start of the next indicator pattern
                 next_indicator_pos = indicators[i + 1][1]
                 # Back up to the opening parenthesis of the next pattern
-                search_start = max(0, next_indicator_pos - 50)
+                search_start = max(0, next_indicator_pos - PATTERN_SEARCH_WINDOW)
                 text_before_next = text[search_start:next_indicator_pos]
                 opening_paren_pos = text_before_next.rfind('(')
                 if opening_paren_pos >= 0:
