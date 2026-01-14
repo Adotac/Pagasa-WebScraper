@@ -329,6 +329,101 @@ class RainfallAdvisoryExtractor:
         
         return locations
     
+    def parse_locations_text_from_pdf(self, text: str) -> List[str]:
+        """
+        Parse location text from PDF table cells into individual locations.
+        Unlike parse_locations_text(), this does NOT stop at "and Location" patterns
+        since PDF tables have clear cell boundaries.
+        
+        This method extracts ALL locations from the cell, including those after "and".
+        """
+        if not text or text.strip() == '-' or text.strip() == '':
+            return []
+        
+        # Directional prefixes that should be combined with following word (e.g., "Northern Samar")
+        directional_prefixes = ['Northern', 'Southern', 'Eastern', 'Western', 'Central', 
+                                'North', 'South', 'East', 'West', 'Greater']
+        
+        # Directional suffixes that should be combined with previous word (e.g., "Negros Occidental")
+        directional_suffixes = ['Occidental', 'Oriental']
+        
+        # Replace newlines with spaces
+        text = text.replace('\n', ' ').replace('\r', ' ')
+        # Normalize multiple spaces to single space
+        text = ' '.join(text.split())
+        
+        # Split by comma only
+        parts = [p.strip() for p in text.split(',')]
+        
+        # Process each part
+        locations = []
+        i = 0
+        while i < len(parts):
+            part = parts[i].strip()
+            
+            # Skip empty parts or dashes
+            if not part or part == '-':
+                i += 1
+                continue
+            
+            # Remove leading "and " if present (but still process the rest)
+            if part.lower().startswith('and '):
+                part = part[4:].strip()  # Remove "and "
+            
+            # Check if this is a directional prefix that should be combined with next part
+            if part in directional_prefixes and i + 1 < len(parts):
+                next_part = parts[i + 1].strip()
+                # Skip "and" in between if present
+                if next_part.lower() == 'and' and i + 2 < len(parts):
+                    next_part = parts[i + 2].strip()
+                    i += 1  # Skip the "and"
+                
+                # Combine directional with location name
+                if next_part and next_part != '-' and next_part.lower() != 'and':
+                    combined = f"{part} {next_part}"
+                    
+                    # Validate location if we have the list
+                    if self.valid_locations:
+                        if self.is_valid_location(combined):
+                            locations.append(combined)
+                            i += 2
+                            continue
+                        # If combined not valid, try standalone
+                    else:
+                        locations.append(combined)
+                        i += 2
+                        continue
+            
+            # Check if next part is a directional suffix that should be combined with current part
+            if i + 1 < len(parts):
+                next_part = parts[i + 1].strip()
+                if next_part in directional_suffixes:
+                    # Combine current location with directional suffix
+                    combined = f"{part} {next_part}"
+                    
+                    # Validate location
+                    if self.valid_locations:
+                        if self.is_valid_location(combined):
+                            locations.append(combined)
+                            i += 2
+                            continue
+                        # If combined not valid, try standalone
+                    else:
+                        locations.append(combined)
+                        i += 2
+                        continue
+            
+            # Regular location - validate and add it
+            if self.valid_locations:
+                if self.is_valid_location(part):
+                    locations.append(part)
+            else:
+                locations.append(part)
+            
+            i += 1
+        
+        return locations
+    
     # ==================== PDF EXTRACTION METHODS ====================
     
     def extract_rainfall_tables_from_pdf(self, pdf_path: str) -> List[List[List]]:
@@ -420,7 +515,8 @@ class RainfallAdvisoryExtractor:
                     continue
                 
                 # Extract locations from "Today" column ONLY (2nd column, index 1)
-                today_locs = self.parse_locations_text(row[1] if len(row) > 1 else '')
+                # Use PDF-specific parser that doesn't stop at "and" patterns
+                today_locs = self.parse_locations_text_from_pdf(row[1] if len(row) > 1 else '')
                 
                 if today_locs:
                     # Add locations directly to warning level
