@@ -734,8 +734,12 @@ def extract_pdf_url_from_page(page_url):
             # Remove PDF viewer parameters
             pdf_url = re.sub(r'#.*$', '', pdf_url)
             
-            # Handle web archive URLs
-            if 'web.archive.org' in page_url and 'web.archive.org' in pdf_url:
+            # Handle web archive URLs - use urlparse to properly check domain
+            from urllib.parse import urlparse as url_parse
+            page_parsed = url_parse(page_url)
+            pdf_parsed = url_parse(pdf_url)
+            
+            if page_parsed.netloc == 'web.archive.org' and pdf_parsed.netloc == 'web.archive.org':
                 # Extract the actual PDF URL from web archive
                 match = re.search(r'web\.archive\.org/web/\d+/(.*)', pdf_url)
                 if match:
@@ -802,11 +806,9 @@ def extract_from_url(url: str) -> Dict:
             source_type = "PDF (downloaded)"
             
             if warnings is None:
-                print("[INFO] PDF is image-based, falling back to HTML extraction")
-                # Try to get the page URL (remove .pdf extension and try)
-                base_url = url.rsplit('/', 1)[0]
-                warnings = extractor.extract_rainfall_warnings_from_html(base_url)
-                source_type = "HTML (fallback)"
+                print("[INFO] PDF is image-based, cannot fall back to HTML for direct PDF URL")
+                warnings = extractor._empty_warnings()
+                source_type = "PDF (image-based, no HTML fallback)"
         else:
             warnings = extractor._empty_warnings()
             source_type = "Failed"
