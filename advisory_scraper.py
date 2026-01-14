@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 """
-PAGASA Weather Advisory HTML Extractor
+PAGASA Weather Advisory Extractor (Hybrid PDF/HTML)
 
-Extracts rainfall warning data from PAGASA weather advisory HTML pages.
-Parses HTML DOM to extract locations affected by different rainfall warning levels.
+Extracts rainfall warning data from PAGASA weather advisory pages.
+Attempts PDF extraction first (if PDF has text), falls back to HTML DOM parsing for scanned PDFs.
 
 Usage:
     python advisory_scraper.py                    # Scrape from live URL
     python advisory_scraper.py --archive          # Test with web archive URL
     python advisory_scraper.py "http://..."       # Extract from URL
+    python advisory_scraper.py "file.pdf"         # Extract from PDF file
     
 Output: JSON with rainfall warnings as lists of locations per warning level
 """
@@ -27,13 +28,14 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup, Comment
 from typing import Dict, List, Optional, Set
 import time
-
+import pdfplumber
 
 
 # Configuration
 TARGET_URL = "https://www.pagasa.dost.gov.ph/weather/weather-advisory"
 WEB_ARCHIVE_URL_TEMPLATE = "https://web.archive.org/web/{timestamp}/https://www.pagasa.dost.gov.ph/weather/weather-advisory"
 CONSOLIDATED_LOCATIONS_PATH = Path(__file__).parent / "bin" / "consolidated_locations.csv"
+OUTPUT_DIR = Path(__file__).parent / "dataset" / "pdfs_advisory"
 
 # Pattern matching constants
 PATTERN_SEARCH_WINDOW = 50  # Characters to search backward for pattern boundaries
@@ -325,6 +327,110 @@ class RainfallAdvisoryExtractor:
         
         return locations
     
+    # ==================== PDF EXTRACTION METHODS ====================
+    
+    def extract_rainfall_tables_from_pdf(self, pdf_path: str) -> List[List[List]]:
+        """Extract all rainfall forecast tables from PDF"""
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                if len(pdf.pages) == 0:
+                    return []
+                
+                # Check if PDF has extractable text
+                page = pdf.pages[0]
+                has_text = len(page.chars) > 0
+                
+                # If no text, cannot extract
+                if not has_text:
+                    print("[WARNING] PDF is image-based (scanned document) with no extractable text")
+                    print("[INFO] Falling back to HTML extraction")
+                    return []
+                
+                # Extract tables from first page
+                tables = page.extract_tables()
+                
+                if not tables:
+                    return []
+                
+                # Find all rainfall forecast tables
+                rainfall_tables = []
+                for table in tables:
+                    if table and len(table) > 0:
+                        # Check if this is a rainfall forecast table
+                        first_row = ' '.join(str(cell or '') for cell in table[0]).lower()
+                        if 'rainfall' in first_row or 'forecast' in first_row:
+                            rainfall_tables.append(table)
+                
+                # If no specific table found but we have tables, return all of them
+                if not rainfall_tables and tables:
+                    rainfall_tables = tables
+                
+                return rainfall_tables
+                
+        except Exception as e:
+            print(f"[ERROR] Failed to extract tables from PDF: {e}")
+            return []
+    
+    def extract_rainfall_warnings_from_pdf(self, pdf_path: str) -> Dict:
+        """
+        Extract rainfall warnings from PDF tables
+        
+        Returns:
+            Dict with structure:
+            {
+                'red': [...],
+                'orange': [...],
+                'yellow': [...]
+            }
+        """
+        tables = self.extract_rainfall_tables_from_pdf(pdf_path)
+        
+        if not tables:
+            print("[WARNING] No rainfall tables found in PDF or PDF is image-based")
+            return None  # Return None to indicate PDF extraction failed
+        
+        print(f"[INFO] Processing {len(tables)} PDF table(s)")
+        
+        warnings = self._empty_warnings()
+        
+        # Process each table
+        for table_idx, table in enumerate(tables):
+            print(f"[INFO] Processing table {table_idx + 1}/{len(tables)}")
+            
+            # Parse table rows
+            for row in table:
+                if not row or len(row) < 2:  # Need at least rainfall amount and one location column
+                    continue
+                
+                # Get rainfall range from first column
+                rainfall_col = str(row[0]).lower() if row[0] else ''
+                
+                # Determine warning level based on rainfall amount
+                warning_level = None
+                if '>200' in rainfall_col or '> 200' in rainfall_col:
+                    warning_level = 'red'
+                elif re.search(r'100\s*[-–]\s*200', rainfall_col):
+                    warning_level = 'orange'
+                elif re.search(r'50\s*[-–]\s*100', rainfall_col):
+                    warning_level = 'yellow'
+                
+                if not warning_level:
+                    continue
+                
+                # Extract locations from "Today" column ONLY (2nd column, index 1)
+                today_locs = self.parse_locations_text(row[1] if len(row) > 1 else '')
+                
+                if today_locs:
+                    # Add locations directly to warning level
+                    warnings[warning_level].extend(today_locs)
+        
+        # Remove duplicates and sort
+        for level in warnings:
+            warnings[level] = sorted(list(set(warnings[level])))
+        
+        return warnings
+    
+    # ==================== HTML EXTRACTION METHODS ====================
 
     def extract_html_text_from_url(self, url: str) -> Optional[str]:
         """Fetch HTML content from URL or local file and extract advisory text"""
@@ -532,7 +638,7 @@ class RainfallAdvisoryExtractor:
         # Parse the locations from the "Today" column text
         return self.parse_locations_text(today_text)
     
-    def extract_rainfall_warnings(self, url: str) -> Dict:
+    def extract_rainfall_warnings_from_html(self, url: str) -> Dict:
         """
         Extract rainfall warnings from HTML URL
         
@@ -580,18 +686,171 @@ def fetch_page_html(url):
         return None
 
 
+def download_pdf(pdf_url, output_dir):
+    """Download a PDF file"""
+    try:
+        # Ensure output directory exists
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        parsed_url = urlparse(pdf_url)
+        filename = os.path.basename(parsed_url.path)
+        
+        if not filename or not filename.endswith('.pdf'):
+            filename = f"advisory_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+        
+        output_path = output_dir / filename
+        
+        if output_path.exists():
+            print(f"[INFO] File already exists: {filename}")
+            return output_path
+        
+        print(f"[INFO] Downloading PDF: {filename}")
+        response = requests.get(pdf_url, timeout=60)
+        response.raise_for_status()
+        
+        with open(output_path, 'wb') as f:
+            f.write(response.content)
+        
+        print(f"[SUCCESS] Saved PDF: {output_path}")
+        return output_path
+    except Exception as e:
+        print(f"[ERROR] Failed to download PDF: {e}")
+        return None
+
+
+def extract_pdf_url_from_page(page_url):
+    """Extract PDF URL from PAGASA weather advisory page"""
+    try:
+        print(f"[INFO] Fetching page to find PDF URL: {page_url}")
+        response = requests.get(page_url, timeout=30)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Look for PDF link in iframe or direct link
+        iframe = soup.find('iframe', {'id': 'blockrandom'})
+        if iframe and iframe.get('src'):
+            pdf_url = iframe['src']
+            # Remove PDF viewer parameters
+            pdf_url = re.sub(r'#.*$', '', pdf_url)
+            
+            # Handle web archive URLs
+            if 'web.archive.org' in page_url and 'web.archive.org' in pdf_url:
+                # Extract the actual PDF URL from web archive
+                match = re.search(r'web\.archive\.org/web/\d+/(.*)', pdf_url)
+                if match:
+                    actual_url = match.group(1)
+                    print(f"[INFO] Found PDF URL (via web archive): {actual_url}")
+                    return actual_url
+            
+            print(f"[INFO] Found PDF URL: {pdf_url}")
+            return pdf_url
+        
+        # Look for direct PDF links
+        pdf_links = soup.find_all('a', href=re.compile(r'\.pdf$', re.I))
+        if pdf_links:
+            pdf_url = urljoin(page_url, pdf_links[0]['href'])
+            print(f"[INFO] Found PDF URL: {pdf_url}")
+            return pdf_url
+        
+        print("[WARNING] No PDF URL found on page")
+        return None
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to extract PDF URL: {e}")
+        return None
+
+
 def extract_from_url(url: str) -> Dict:
-    """Extract rainfall warnings from HTML URL"""
+    """
+    Extract rainfall warnings using hybrid PDF/HTML approach.
+    
+    Workflow:
+    1. Try to extract PDF URL from page
+    2. Download PDF
+    3. Check if PDF has text content
+    4. If PDF has text, use PDF extraction
+    5. If PDF is image-based or extraction fails, fall back to HTML extraction
+    """
     print("="*70)
-    print("EXTRACTING FROM URL")
+    print("PAGASA WEATHER ADVISORY EXTRACTOR (Hybrid PDF/HTML)")
     print("="*70)
     
     extractor = RainfallAdvisoryExtractor()
-    warnings = extractor.extract_rainfall_warnings(url)
-    formatted = extractor.format_for_output(warnings)
+    warnings = None
+    source_type = None
+    
+    # Check if URL is a direct PDF file
+    if url.lower().endswith('.pdf') and os.path.exists(url):
+        # Local PDF file
+        print("[INFO] Detected local PDF file")
+        warnings = extractor.extract_rainfall_warnings_from_pdf(url)
+        source_type = "PDF (local)"
+        
+        if warnings is None:
+            print("[INFO] PDF extraction failed, falling back to HTML extraction")
+            # Can't fall back for local PDF
+            warnings = extractor._empty_warnings()
+    
+    elif url.lower().endswith('.pdf'):
+        # URL to PDF file
+        print("[INFO] Detected PDF URL")
+        pdf_path = download_pdf(url, OUTPUT_DIR)
+        
+        if pdf_path:
+            warnings = extractor.extract_rainfall_warnings_from_pdf(str(pdf_path))
+            source_type = "PDF (downloaded)"
+            
+            if warnings is None:
+                print("[INFO] PDF is image-based, falling back to HTML extraction")
+                # Try to get the page URL (remove .pdf extension and try)
+                base_url = url.rsplit('/', 1)[0]
+                warnings = extractor.extract_rainfall_warnings_from_html(base_url)
+                source_type = "HTML (fallback)"
+        else:
+            warnings = extractor._empty_warnings()
+            source_type = "Failed"
+    
+    else:
+        # HTML page URL - try hybrid approach
+        print("[INFO] Attempting PDF extraction from page")
+        
+        # Step 1: Try to extract PDF URL from page
+        pdf_url = extract_pdf_url_from_page(url)
+        
+        if pdf_url:
+            # Step 2: Download PDF
+            pdf_path = download_pdf(pdf_url, OUTPUT_DIR)
+            
+            if pdf_path:
+                # Step 3: Try PDF extraction
+                print("[INFO] Attempting PDF extraction")
+                warnings = extractor.extract_rainfall_warnings_from_pdf(str(pdf_path))
+                
+                if warnings is not None and any(len(v) > 0 for v in warnings.values()):
+                    # PDF extraction successful
+                    source_type = "PDF (text-based)"
+                    print(f"[SUCCESS] Extracted from PDF: {sum(len(v) for v in warnings.values())} total locations")
+                else:
+                    # PDF extraction failed or returned empty results
+                    print("[INFO] PDF extraction unsuccessful, falling back to HTML")
+                    warnings = None
+        
+        # Step 4: Fall back to HTML extraction if PDF failed
+        if warnings is None:
+            print("[INFO] Using HTML extraction")
+            warnings = extractor.extract_rainfall_warnings_from_html(url)
+            source_type = "HTML (DOM parsing)"
+    
+    # Format output
+    if warnings:
+        formatted = extractor.format_for_output(warnings)
+    else:
+        formatted = extractor._empty_warnings()
     
     result = {
         'source_url': url,
+        'extraction_method': source_type or "Unknown",
         'rainfall_warnings': formatted
     }
     
