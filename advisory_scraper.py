@@ -281,10 +281,18 @@ class RainfallAdvisoryExtractor:
     
 
     def extract_html_text_from_url(self, url: str) -> Optional[str]:
-        """Fetch HTML content from URL and extract advisory text"""
+        """Fetch HTML content from URL or local file and extract advisory text"""
         print(f"[INFO] Fetching page from: {url}")
         
         try:
+            # Check if it's a local file path
+            if os.path.exists(url):
+                print(f"[INFO] Reading from local file: {url}")
+                with open(url, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                return self.extract_advisory_text_from_html(html_content)
+            
+            # Otherwise, treat as URL
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             html_content = response.text
@@ -292,6 +300,9 @@ class RainfallAdvisoryExtractor:
             return self.extract_advisory_text_from_html(html_content)
         except requests.RequestException as e:
             print(f"[ERROR] Failed to fetch page: {e}")
+            return None
+        except Exception as e:
+            print(f"[ERROR] Failed to read file: {e}")
             return None
     
     def extract_advisory_text_from_html(self, html_content: str) -> Optional[str]:
