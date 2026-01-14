@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 """
-PAGASA Weather Advisory PDF Extractor
+PAGASA Weather Advisory HTML Extractor
 
-Extracts rainfall warning data from PAGASA weather advisory PDFs.
-Parses tables to extract locations affected by different rainfall warning levels.
-
-Note: Only works with text-based PDFs (not scanned images).
+Extracts rainfall warning data from PAGASA weather advisory HTML pages.
+Parses HTML DOM to extract locations affected by different rainfall warning levels.
 
 Usage:
     python advisory_scraper.py                    # Scrape from live URL
-    python advisory_scraper.py --random           # Test random PDF from dataset
-    python advisory_scraper.py "file.pdf"         # Test specific PDF
+    python advisory_scraper.py --archive          # Test with web archive URL
     python advisory_scraper.py "http://..."       # Extract from URL
     
 Output: JSON with rainfall warnings as lists of locations per warning level
@@ -21,32 +18,58 @@ import sys
 import os
 import re
 import json
-import random
+import csv
 import argparse
 from pathlib import Path
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
-from bs4 import BeautifulSoup
-from typing import Dict, List, Optional, Tuple
-import pdfplumber
+from bs4 import BeautifulSoup, Comment
+from typing import Dict, List, Optional, Set
 import time
 
 
 # Configuration
 TARGET_URL = "https://www.pagasa.dost.gov.ph/weather/weather-advisory"
-OUTPUT_DIR = Path(__file__).parent / "dataset" / "pdfs_advisory"
+WEB_ARCHIVE_URL_TEMPLATE = "https://web.archive.org/web/{timestamp}/https://www.pagasa.dost.gov.ph/weather/weather-advisory"
+CONSOLIDATED_LOCATIONS_PATH = Path(__file__).parent / "bin" / "consolidated_locations.csv"
 
 
 class RainfallAdvisoryExtractor:
-    """Extracts rainfall advisory data from PAGASA PDFs"""
+    """Extracts rainfall advisory data from PAGASA HTML pages"""
     
     def __init__(self):
-        pass
+        self.valid_locations = self._load_consolidated_locations()
+    
+    def _load_consolidated_locations(self) -> Set[str]:
+        """Load valid location names from consolidated_locations.csv"""
+        locations = set()
+        
+        if not CONSOLIDATED_LOCATIONS_PATH.exists():
+            print(f"[WARNING] Consolidated locations file not found: {CONSOLIDATED_LOCATIONS_PATH}")
+            return locations
+        
+        try:
+            with open(CONSOLIDATED_LOCATIONS_PATH, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    location_name = row.get('location_name', '').strip()
+                    if location_name:
+                        locations.add(location_name)
+            
+            print(f"[INFO] Loaded {len(locations)} valid locations from CSV")
+        except Exception as e:
+            print(f"[WARNING] Failed to load consolidated locations: {e}")
+        
+        return locations
     
     def parse_locations_text(self, text: str) -> List[str]:
         """
         Parse location text into individual locations.
-        Handles directional modifiers and "and" connectors properly.
+        Handles directional modifiers, "and" connectors, and column breaks.
+        Stops at double/triple whitespace or "Potential Impacts" text.
+        
+        Column breaks are indicated by lack of comma after "and Location".
+        Example: "and Albay Kalinga" means Albay ends one column, Kalinga starts next.
         """
         if not text or text.strip() == '-' or text.strip() == '':
             return []
@@ -58,9 +81,16 @@ class RainfallAdvisoryExtractor:
         # Directional suffixes that should be combined with previous word (e.g., "Negros Occidental")
         directional_suffixes = ['Occidental', 'Oriental']
         
-        # Replace newlines with spaces first to keep multi-word locations together
-        # Then split by commas only
+        # Replace newlines with spaces first
         text = text.replace('\n', ' ').replace('\r', ' ')
+        
+        # Check for double/triple whitespace - this indicates end of locations
+        # Split by multiple spaces (2+) to detect sections
+        sections = re.split(r'  +', text)
+        if len(sections) > 1:
+            # Only use the first section before the large gap
+            text = sections[0]
+        
         # Normalize multiple spaces to single space
         text = ' '.join(text.split())
         
@@ -78,6 +108,110 @@ class RainfallAdvisoryExtractor:
                 i += 1
                 continue
             
+            # Check if this part contains "and Location1 Location2" pattern (column break)
+            if part.lower().startswith('and '):
+                words = part[4:].strip().split()  # Remove "and " and split
+                
+                if len(words) >= 2:
+                    # Check if first word(s) form a valid location
+                    # Try two-word combination first (for directional locations)
+                    if words[0] in directional_prefixes and len(words) >= 2:
+                        # "and Northern Samar Location2" - check if "Northern Samar" is valid
+                        combined = f"{words[0]} {words[1]}"
+                        if not self.valid_locations or combined in self.valid_locations:
+                            locations.append(combined)
+                            # Continue with remaining words as a new section
+                            if len(words) > 2:
+                                remaining = ' '.join(words[2:])
+                                remaining_locs = self.parse_locations_text(remaining)
+                                locations.extend(remaining_locs)
+                            i += 1
+                            continue
+                    
+                    # Try single word as location
+                    if not self.valid_locations or words[0] in self.valid_locations:
+                        locations.append(words[0])
+                        # Continue parsing remaining words as new column
+                        if len(words) > 1:
+                            remaining = ' '.join(words[1:])
+                            remaining_locs = self.parse_locations_text(remaining)
+                            locations.extend(remaining_locs)
+                        i += 1
+                        continue
+                    else:
+                        # First word after "and" is not a valid location - stop
+                        break
+                
+                elif len(words) == 1:
+                    # Just "and Location"
+                    if not self.valid_locations or words[0] in self.valid_locations:
+                        locations.append(words[0])
+                    else:
+                        break
+                    i += 1
+                    continue
+            
+            # Check if this part contains multiple words that might be separate locations
+            words = part.split()
+            
+            # Filter out "and" from the beginning (shouldn't happen here but just in case)
+            if words and words[0].lower() == 'and':
+                words = words[1:]
+            
+            # If we have multiple words, check if they're a compound location or separate locations
+            if len(words) > 2:
+                # Try to match as a compound location first
+                compound = ' '.join(words)
+                if self.valid_locations and compound in self.valid_locations:
+                    locations.append(compound)
+                    i += 1
+                    continue
+                
+                # Try pairs for directional combinations
+                j = 0
+                added = False
+                while j < len(words):
+                    if j + 1 < len(words):
+                        # Check directional prefix
+                        if words[j] in directional_prefixes:
+                            combined = f"{words[j]} {words[j+1]}"
+                            if not self.valid_locations or combined in self.valid_locations:
+                                locations.append(combined)
+                                j += 2
+                                added = True
+                                continue
+                        
+                        # Check directional suffix
+                        if words[j+1] in directional_suffixes:
+                            combined = f"{words[j]} {words[j+1]}"
+                            if not self.valid_locations or combined in self.valid_locations:
+                                locations.append(combined)
+                                j += 2
+                                added = True
+                                continue
+                    
+                    # Single word location
+                    if self.valid_locations:
+                        if words[j] in self.valid_locations:
+                            locations.append(words[j])
+                            j += 1
+                            added = True
+                        else:
+                            # Invalid location - but continue to parse rest as potential new column
+                            if j < len(words) - 1:
+                                remaining = ' '.join(words[j+1:])
+                                remaining_locs = self.parse_locations_text(remaining)
+                                locations.extend(remaining_locs)
+                            return locations
+                    else:
+                        locations.append(words[j])
+                        j += 1
+                        added = True
+                
+                if added:
+                    i += 1
+                    continue
+            
             # Check if this is a directional prefix that should be combined with next part
             if part in directional_prefixes and i + 1 < len(parts):
                 next_part = parts[i + 1].strip()
@@ -89,12 +223,26 @@ class RainfallAdvisoryExtractor:
                 # Combine directional with location name
                 if next_part and next_part != '-' and next_part.lower() != 'and':
                     combined = f"{part} {next_part}"
-                    locations.append(combined)
-                    i += 2  # Skip both parts
-                    continue
+                    
+                    # Validate location if we have the list
+                    if self.valid_locations:
+                        if combined in self.valid_locations:
+                            locations.append(combined)
+                            i += 2
+                            continue
+                        else:
+                            # Invalid location - stop parsing
+                            break
+                    else:
+                        locations.append(combined)
+                        i += 2
+                        continue
                 else:
                     # Standalone directional, keep as is (unusual but possible)
-                    locations.append(part)
+                    if not self.valid_locations or part in self.valid_locations:
+                        locations.append(part)
+                    else:
+                        break  # Invalid location - stop
                     i += 1
                     continue
             
@@ -104,71 +252,164 @@ class RainfallAdvisoryExtractor:
                 if next_part in directional_suffixes:
                     # Combine current location with directional suffix
                     combined = f"{part} {next_part}"
-                    locations.append(combined)
-                    i += 2  # Skip both parts
-                    continue
+                    
+                    # Validate location
+                    if self.valid_locations:
+                        if combined in self.valid_locations:
+                            locations.append(combined)
+                            i += 2
+                            continue
+                        else:
+                            break  # Invalid location - stop
+                    else:
+                        locations.append(combined)
+                        i += 2
+                        continue
             
-            # Handle parts that start with "and" (e.g., "and Guimaras")
-            if part.lower().startswith('and '):
-                actual_location = part[4:].strip()  # Remove "and " prefix
-                if actual_location and actual_location != '-':
-                    locations.append(actual_location)
-                i += 1
-                continue
-            
-            # Regular location - add it
-            locations.append(part)
+            # Regular location - validate and add it
+            if self.valid_locations:
+                if part in self.valid_locations:
+                    locations.append(part)
+                else:
+                    # Invalid location - stop parsing
+                    break
+            else:
+                locations.append(part)
             i += 1
         
         return locations
     
 
-    
-    def extract_rainfall_tables(self, pdf_path: str) -> List[List[List]]:
-        """Extract all rainfall forecast tables from PDF"""
+    def extract_html_text_from_url(self, url: str) -> Optional[str]:
+        """Fetch HTML content from URL and extract advisory text"""
+        print(f"[INFO] Fetching page from: {url}")
+        
         try:
-            with pdfplumber.open(pdf_path) as pdf:
-                if len(pdf.pages) == 0:
-                    return []
-                
-                # Check if PDF has extractable text
-                page = pdf.pages[0]
-                has_text = len(page.chars) > 0
-                
-                # If no text, cannot extract
-                if not has_text:
-                    print("[WARNING] PDF is image-based (scanned document) with no extractable text")
-                    print("[INFO] This script only works with text-based PDFs")
-                    return []
-                
-                # Extract tables from first page
-                tables = page.extract_tables()
-                
-                if not tables:
-                    return []
-                
-                # Find all rainfall forecast tables
-                rainfall_tables = []
-                for table in tables:
-                    if table and len(table) > 0:
-                        # Check if this is a rainfall forecast table
-                        first_row = ' '.join(str(cell or '') for cell in table[0]).lower()
-                        if 'rainfall' in first_row or 'forecast' in first_row:
-                            rainfall_tables.append(table)
-                
-                # If no specific table found but we have tables, return all of them
-                if not rainfall_tables and tables:
-                    rainfall_tables = tables
-                
-                return rainfall_tables
-                
-        except Exception as e:
-            print(f"[ERROR] Failed to extract tables from PDF: {e}")
-            return []
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            html_content = response.text
+            
+            return self.extract_advisory_text_from_html(html_content)
+        except requests.RequestException as e:
+            print(f"[ERROR] Failed to fetch page: {e}")
+            return None
     
-    def extract_rainfall_warnings(self, pdf_path: str) -> Dict:
+    def extract_advisory_text_from_html(self, html_content: str) -> Optional[str]:
+        """Extract rainfall advisory text from HTML content"""
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Find the weekly-content-adv div
+        advisory_div = soup.find('div', class_='weekly-content-adv')
+        
+        if not advisory_div:
+            print("[WARNING] Could not find weekly-content-adv div")
+            return None
+        
+        # Look for commented content first
+        comments = advisory_div.find_all(string=lambda text: isinstance(text, Comment))
+        
+        for comment in comments:
+            comment_text = str(comment).strip()
+            # Check if this comment contains rainfall data
+            if 'rainfall' in comment_text.lower() or 'mm)' in comment_text.lower():
+                print("[INFO] Found rainfall data in HTML comment")
+                return comment_text
+        
+        # If no comments found, try to extract from paragraph tags
+        paragraphs = advisory_div.find_all('p')
+        for p in paragraphs:
+            text = p.get_text().strip()
+            if 'rainfall' in text.lower() or 'mm)' in text.lower():
+                print("[INFO] Found rainfall data in paragraph tag")
+                return text
+        
+        print("[WARNING] No rainfall advisory text found in HTML")
+        return None
+    
+    def parse_rainfall_text(self, text: str) -> Dict[str, List[str]]:
         """
-        Extract rainfall warnings from PDF
+        Parse rainfall advisory text to extract locations by warning level.
+        
+        Text format example:
+        (>200 mm) Location1, Location2, Location3 (100-200 mm) Location4, ...
+        
+        Returns dict with keys: red, orange, yellow
+        """
+        warnings = self._empty_warnings()
+        
+        if not text:
+            return warnings
+        
+        # Patterns for rainfall indicators
+        red_pattern = r'\(?>?\s*200\s*mm\)|>\s*200\s*mm'
+        orange_pattern = r'\(?100\s*[-–]\s*200\s*mm\)'
+        yellow_pattern = r'\(?50\s*[-–]\s*100\s*mm\)'
+        
+        # Find all rainfall indicators and their positions
+        indicators = []
+        
+        for match in re.finditer(red_pattern, text, re.IGNORECASE):
+            indicators.append(('red', match.end()))
+        
+        for match in re.finditer(orange_pattern, text, re.IGNORECASE):
+            indicators.append(('orange', match.end()))
+        
+        for match in re.finditer(yellow_pattern, text, re.IGNORECASE):
+            indicators.append(('yellow', match.end()))
+        
+        # Sort by position
+        indicators.sort(key=lambda x: x[1])
+        
+        print(f"[INFO] Found {len(indicators)} rainfall indicators")
+        
+        # Extract locations for each indicator
+        for i, (level, start_pos) in enumerate(indicators):
+            # Determine end position (next indicator or end of text)
+            if i + 1 < len(indicators):
+                end_pos = indicators[i + 1][1] - len(text[indicators[i + 1][1]-50:indicators[i + 1][1]].split('(')[-1]) - 1
+            else:
+                end_pos = len(text)
+            
+            # Extract text segment for this warning level
+            segment = text[start_pos:end_pos].strip()
+            
+            # Split by common date headers to get multiple columns
+            # Pattern: "Today (Date)" or "Tomorrow (Date)" etc.
+            date_pattern = r'(?:Today|Tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*\([^)]+\)'
+            
+            # Split by date headers
+            date_sections = re.split(date_pattern, segment, flags=re.IGNORECASE)
+            
+            all_locations = []
+            
+            for section in date_sections:
+                if not section.strip():
+                    continue
+                
+                # Stop at "Potential Impacts" or similar text
+                if re.search(r'potential\s+impacts', section, re.IGNORECASE):
+                    # Extract only text before "Potential Impacts"
+                    section = re.split(r'potential\s+impacts', section, flags=re.IGNORECASE)[0]
+                
+                # Parse locations from this section
+                locations = self.parse_locations_text(section.strip())
+                all_locations.extend(locations)
+            
+            # Remove duplicates and add to warnings
+            unique_locations = list(dict.fromkeys(all_locations))  # Preserves order
+            warnings[level].extend(unique_locations)
+            
+            print(f"[INFO] Extracted {len(unique_locations)} locations for {level} warning")
+        
+        # Final deduplication across all levels
+        for level in warnings:
+            warnings[level] = list(dict.fromkeys(warnings[level]))
+        
+        return warnings
+    
+    def extract_rainfall_warnings(self, url: str) -> Dict:
+        """
+        Extract rainfall warnings from HTML URL
         
         Returns:
             Dict with structure:
@@ -178,57 +419,15 @@ class RainfallAdvisoryExtractor:
                 'yellow': [...]
             }
         """
-        tables = self.extract_rainfall_tables(pdf_path)
+        advisory_text = self.extract_html_text_from_url(url)
         
-        if not tables:
-            print("[WARNING] No rainfall tables found in PDF")
+        if not advisory_text:
+            print("[WARNING] No advisory text found")
             return self._empty_warnings()
         
-        print(f"[INFO] Processing {len(tables)} table(s)")
+        print(f"[INFO] Parsing advisory text ({len(advisory_text)} characters)")
         
-        warnings = self._empty_warnings()
-        
-        # Process each table
-        for table_idx, table in enumerate(tables):
-            print(f"[INFO] Processing table {table_idx + 1}/{len(tables)}")
-            
-            # Parse table rows
-            for row in table:
-                if not row or len(row) < 2:  # Need at least rainfall amount and one location column
-                    continue
-                
-                # Get rainfall range from first column
-                rainfall_col = str(row[0]).lower() if row[0] else ''
-                
-                # Determine warning level based on rainfall amount
-                warning_level = None
-                if '>200' in rainfall_col or '> 200' in rainfall_col:
-                    warning_level = 'red'
-                elif re.search(r'100\s*[-–]\s*200', rainfall_col):
-                    warning_level = 'orange'
-                elif re.search(r'50\s*[-–]\s*100', rainfall_col):
-                    warning_level = 'yellow'
-                
-                if not warning_level:
-                    continue
-                
-                # Extract locations from "Today" column (2nd column, index 1)
-                # and "Tomorrow" column (3rd column, index 2)
-                today_locs = self.parse_locations_text(row[1] if len(row) > 1 else '')
-                tomorrow_locs = self.parse_locations_text(row[2] if len(row) > 2 else '')
-                
-                # Combine locations from both columns
-                all_locations = list(set(today_locs + tomorrow_locs))
-                
-                if all_locations:
-                    # Add locations directly to warning level
-                    warnings[warning_level].extend(all_locations)
-        
-        # Remove duplicates and sort
-        for level in warnings:
-            warnings[level] = sorted(list(set(warnings[level])))
-        
-        return warnings
+        return self.parse_rainfall_text(advisory_text)
     
     def _empty_warnings(self) -> Dict:
         """Return empty warnings structure"""
@@ -241,11 +440,6 @@ class RainfallAdvisoryExtractor:
     def format_for_output(self, warnings: Dict) -> Dict:
         """Format warnings for JSON output - return lists directly"""
         return warnings
-
-
-def setup_output_directory():
-    """Create output directory if it doesn't exist."""
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def fetch_page_html(url):
@@ -261,79 +455,18 @@ def fetch_page_html(url):
         return None
 
 
-def _has_advisory_classes(class_attr):
-    """Check if element has required advisory classes"""
-    return class_attr and 'col-md-12' in class_attr and 'article-content' in class_attr and 'weather-advisory' in class_attr
-
-
-def extract_pdfs_from_advisory_elements(html_content, base_url):
-    """Extract PDF links from advisory elements"""
-    soup = BeautifulSoup(html_content, 'html.parser')
-    pdf_urls = []
-    
-    advisory_elements = soup.find_all('div', class_=_has_advisory_classes)
-    
-    if not advisory_elements:
-        advisory_elements = soup.find_all('div', class_='article-content weather-advisory')
-        if not advisory_elements:
-            advisory_elements = soup.find_all('div', class_='weather-advisory')
-    
-    for element in advisory_elements:
-        links = element.find_all('a', href=True)
-        for link in links:
-            href = link.get('href', '')
-            
-            if href.endswith('.pdf') or '.pdf' in href.lower():
-                if not href.startswith('http'):
-                    href = urljoin(base_url, href)
-                
-                if href not in pdf_urls:
-                    pdf_urls.append(href)
-    
-    return pdf_urls
-
-
-def download_pdf(pdf_url, output_dir):
-    """Download a PDF file"""
-    try:
-        parsed_url = urlparse(pdf_url)
-        filename = os.path.basename(parsed_url.path)
-        
-        if not filename or not filename.endswith('.pdf'):
-            filename = f"advisory_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-        
-        output_path = output_dir / filename
-        
-        if output_path.exists():
-            print(f"[INFO] File already exists: {filename}")
-            return output_path
-        
-        print(f"[INFO] Downloading: {filename}")
-        response = requests.get(pdf_url, timeout=60)
-        response.raise_for_status()
-        
-        with open(output_path, 'wb') as f:
-            f.write(response.content)
-        
-        print(f"[SUCCESS] Saved: {output_path}")
-        return output_path
-    except Exception as e:
-        print(f"[ERROR] Failed to download PDF: {e}")
-        return None
-
-
-def extract_from_pdf(pdf_path: str) -> Dict:
-    """Extract rainfall warnings from a single PDF"""
-    print(f"\n{'='*70}")
-    print(f"Extracting from: {Path(pdf_path).name}")
-    print('='*70)
+def extract_from_url(url: str) -> Dict:
+    """Extract rainfall warnings from HTML URL"""
+    print("="*70)
+    print("EXTRACTING FROM URL")
+    print("="*70)
     
     extractor = RainfallAdvisoryExtractor()
-    warnings = extractor.extract_rainfall_warnings(pdf_path)
+    warnings = extractor.extract_rainfall_warnings(url)
     formatted = extractor.format_for_output(warnings)
     
     result = {
-        'source_file': str(pdf_path),
+        'source_url': url,
         'rainfall_warnings': formatted
     }
     
@@ -341,82 +474,30 @@ def extract_from_pdf(pdf_path: str) -> Dict:
 
 
 def scrape_and_extract():
-    """Scrape PDFs from live URL and extract data"""
+    """Scrape and extract from live URL"""
     print("="*70)
     print("PAGASA WEATHER ADVISORY SCRAPER & EXTRACTOR")
     print("="*70)
     
-    setup_output_directory()
-    
-    # Fetch HTML
-    html_content = fetch_page_html(TARGET_URL)
-    if not html_content:
-        return None
-    
-    # Extract PDF URLs
-    pdf_urls = extract_pdfs_from_advisory_elements(html_content, TARGET_URL)
-    
-    if not pdf_urls:
-        print("[INFO] No PDFs found on the page")
-        return None
-    
-    print(f"\n[INFO] Found {len(pdf_urls)} PDF(s)")
-    
-    # Download and extract from first PDF
-    if pdf_urls:
-        pdf_path = download_pdf(pdf_urls[0], OUTPUT_DIR)
-        if pdf_path:
-            return extract_from_pdf(str(pdf_path))
-    
-    return None
-
-
-def extract_from_url(url: str) -> Dict:
-    """Download and extract from PDF URL"""
-    print("="*70)
-    print("EXTRACTING FROM URL")
-    print("="*70)
-    
-    setup_output_directory()
-    pdf_path = download_pdf(url, OUTPUT_DIR)
-    
-    if pdf_path:
-        return extract_from_pdf(str(pdf_path))
-    return None
-
-
-def extract_random_from_dataset() -> Dict:
-    """Extract from random PDF in dataset"""
-    print("="*70)
-    print("EXTRACTING FROM RANDOM PDF")
-    print("="*70)
-    
-    pdf_files = list(OUTPUT_DIR.glob('*.pdf'))
-    
-    if not pdf_files:
-        print("[ERROR] No PDFs found in dataset directory")
-        return None
-    
-    pdf_path = random.choice(pdf_files)
-    return extract_from_pdf(str(pdf_path))
+    return extract_from_url(TARGET_URL)
 
 
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description='Extract rainfall warnings from PAGASA weather advisory PDFs',
+        description='Extract rainfall warnings from PAGASA weather advisory HTML pages',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python advisory_scraper.py                          # Scrape from live URL
-  python advisory_scraper.py --random                 # Test random PDF from dataset
-  python advisory_scraper.py "file.pdf"               # Test specific PDF (auto-detected)
-  python advisory_scraper.py "http://..."             # Extract from URL (auto-detected)
+  python advisory_scraper.py --archive                # Use web archive URL (with timestamp)
+  python advisory_scraper.py "http://..."             # Extract from custom URL
         """
     )
     
-    parser.add_argument('source', nargs='?', help='PDF file path or URL (auto-detected)')
-    parser.add_argument('--random', action='store_true', help='Extract from random PDF in dataset')
+    parser.add_argument('source', nargs='?', help='Custom URL to extract from')
+    parser.add_argument('--archive', action='store_true', help='Use web archive URL with timestamp')
+    parser.add_argument('--timestamp', default='20251108223833', help='Web archive timestamp (default: 20251108223833)')
     parser.add_argument('--json', action='store_true', help='Output only JSON (no progress messages)')
     
     args = parser.parse_args()
@@ -424,17 +505,13 @@ Examples:
     result = None
     
     try:
-        if args.random:
-            # Extract from random dataset PDF
-            result = extract_random_from_dataset()
-        elif args.source:
-            # Auto-detect if source is URL or file path
-            if args.source.startswith('http://') or args.source.startswith('https://'):
-                # It's a URL
-                result = extract_from_url(args.source)
-            else:
-                # It's a file path
-                result = extract_from_pdf(args.source)
+        if args.source:
+            # Extract from custom URL
+            result = extract_from_url(args.source)
+        elif args.archive:
+            # Use web archive URL
+            archive_url = WEB_ARCHIVE_URL_TEMPLATE.format(timestamp=args.timestamp)
+            result = extract_from_url(archive_url)
         else:
             # Default: scrape from live URL
             result = scrape_and_extract()
