@@ -352,9 +352,12 @@ class RainfallAdvisoryExtractor:
             return warnings
         
         # Patterns for rainfall indicators
-        red_pattern = r'\(?>?\s*200\s*mm\)|>\s*200\s*mm'
-        orange_pattern = r'\(?100\s*[-–]\s*200\s*mm\)'
-        yellow_pattern = r'\(?50\s*[-–]\s*100\s*mm\)'
+        # Matches: (>200 mm), (> 200 mm), >200 mm, > 200 mm
+        red_pattern = r'\(?\s*>?\s*200\s*mm\s*\)?'
+        # Matches: (100 - 200 mm), (100 – 200 mm), 100-200 mm
+        orange_pattern = r'\(?\s*100\s*[-–]\s*200\s*mm\s*\)?'
+        # Matches: (50 - 100 mm), (50 – 100 mm), 50-100 mm
+        yellow_pattern = r'\(?\s*50\s*[-–]\s*100\s*mm\s*\)?'
         
         # Find all rainfall indicators and their positions
         indicators = []
@@ -377,7 +380,16 @@ class RainfallAdvisoryExtractor:
         for i, (level, start_pos) in enumerate(indicators):
             # Determine end position (next indicator or end of text)
             if i + 1 < len(indicators):
-                end_pos = indicators[i + 1][1] - len(text[indicators[i + 1][1]-50:indicators[i + 1][1]].split('(')[-1]) - 1
+                # Find the start of the next indicator pattern
+                next_indicator_pos = indicators[i + 1][1]
+                # Back up to the opening parenthesis of the next pattern
+                search_start = max(0, next_indicator_pos - 50)
+                text_before_next = text[search_start:next_indicator_pos]
+                opening_paren_pos = text_before_next.rfind('(')
+                if opening_paren_pos >= 0:
+                    end_pos = search_start + opening_paren_pos
+                else:
+                    end_pos = next_indicator_pos
             else:
                 end_pos = len(text)
             
