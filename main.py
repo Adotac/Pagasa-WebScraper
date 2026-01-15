@@ -43,6 +43,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from contextlib import contextmanager
 from advisory_scraper import scrape_and_extract
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 @contextmanager
@@ -223,33 +224,6 @@ def analyze_pdf(pdf_url_or_path, low_cpu_mode=False, verbose=False):
             from analyze_pdf import cpu_throttle
             cpu_throttle(process, target_cpu_percent=30)
         
-        # Fetch live advisory data and merge with PDF extraction results
-        advisory_data = fetch_live_advisory_data(verbose=verbose)
-        if advisory_data and any(advisory_data.get(level, []) for level in ['red', 'orange', 'yellow']):
-            # Replace rainfall warnings with live advisory data
-            # Map: red -> rainfall_warning_tags1, orange -> rainfall_warning_tags2, yellow -> rainfall_warning_tags3
-            data['rainfall_warning_tags1'] = advisory_data.get('red', [])
-            data['rainfall_warning_tags2'] = advisory_data.get('orange', [])
-            data['rainfall_warning_tags3'] = advisory_data.get('yellow', [])
-            if verbose:
-                print("[INFO] Replaced rainfall warnings with live advisory data", file=sys.stderr)
-        else:
-            # If advisory fetch fails or returns empty data, convert existing IslandGroupType format to list format
-            if verbose:
-                print("[INFO] Using PDF-extracted rainfall data (advisory fetch failed or returned no data)", file=sys.stderr)
-            for level in range(1, 4):
-                tag_key = f'rainfall_warning_tags{level}'
-                old_format = data.get(tag_key, {})
-                # Convert IslandGroupType dict to list of locations
-                locations = []
-                if isinstance(old_format, dict):
-                    for island_group in ['Luzon', 'Visayas', 'Mindanao', 'Other']:
-                        loc_str = old_format.get(island_group)
-                        if loc_str:
-                            # Split by comma and add to list, filtering out empty strings
-                            locations.extend([loc.strip() for loc in loc_str.split(',') if loc.strip()])
-                data[tag_key] = locations
-        
         return data
     except Exception as e:
         if verbose:
@@ -268,6 +242,76 @@ def analyze_pdf(pdf_url_or_path, low_cpu_mode=False, verbose=False):
             except Exception as e:
                 if verbose:
                     print(f"  Warning: Could not delete temp file: {e}", file=sys.stderr)
+
+
+def analyze_pdf_and_advisory_parallel(pdf_url_or_path, low_cpu_mode=False, verbose=False):
+    """
+    Run PDF analysis and advisory scraping in parallel for better performance.
+    
+    Args:
+        pdf_url_or_path: URL or local path to PDF file
+        low_cpu_mode: Whether to limit CPU usage
+        verbose: Whether to show progress
+        
+    Returns:
+        Dictionary of extracted data with merged rainfall warnings, or None on failure
+    """
+    if verbose:
+        print("[INFO] Starting parallel execution of PDF analysis and advisory scraping...", file=sys.stderr)
+    
+    pdf_data = None
+    advisory_data = None
+    
+    # Use ThreadPoolExecutor for I/O bound operations
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        # Submit both tasks
+        pdf_future = executor.submit(analyze_pdf, pdf_url_or_path, low_cpu_mode, verbose)
+        advisory_future = executor.submit(fetch_live_advisory_data, verbose)
+        
+        # Wait for both to complete
+        for future in as_completed([pdf_future, advisory_future]):
+            if future == pdf_future:
+                pdf_data = future.result()
+                if verbose:
+                    print("[INFO] PDF analysis completed", file=sys.stderr)
+            elif future == advisory_future:
+                advisory_data = future.result()
+                if verbose:
+                    print("[INFO] Advisory scraping completed", file=sys.stderr)
+    
+    # Check if PDF analysis succeeded
+    if not pdf_data:
+        if verbose:
+            print("[ERROR] PDF analysis failed", file=sys.stderr)
+        return None
+    
+    # Merge advisory data with PDF extraction results
+    if advisory_data and any(advisory_data.get(level, []) for level in ['red', 'orange', 'yellow']):
+        # Replace rainfall warnings with live advisory data
+        # Map: red -> rainfall_warning_tags1, orange -> rainfall_warning_tags2, yellow -> rainfall_warning_tags3
+        pdf_data['rainfall_warning_tags1'] = advisory_data.get('red', [])
+        pdf_data['rainfall_warning_tags2'] = advisory_data.get('orange', [])
+        pdf_data['rainfall_warning_tags3'] = advisory_data.get('yellow', [])
+        if verbose:
+            print("[INFO] Merged live advisory data with PDF extraction", file=sys.stderr)
+    else:
+        # If advisory fetch fails or returns empty data, convert existing IslandGroupType format to list format
+        if verbose:
+            print("[INFO] Using PDF-extracted rainfall data (advisory fetch failed or returned no data)", file=sys.stderr)
+        for level in range(1, 4):
+            tag_key = f'rainfall_warning_tags{level}'
+            old_format = pdf_data.get(tag_key, {})
+            # Convert IslandGroupType dict to list of locations
+            locations = []
+            if isinstance(old_format, dict):
+                for island_group in ['Luzon', 'Visayas', 'Mindanao', 'Other']:
+                    loc_str = old_format.get(island_group)
+                    if loc_str:
+                        # Split by comma and add to list, filtering out empty strings
+                        locations.extend([loc.strip() for loc in loc_str.split(',') if loc.strip()])
+            pdf_data[tag_key] = locations
+    
+    return pdf_data
 
 
 def display_results(typhoon_name, data):
@@ -403,12 +447,12 @@ def main():
             print(f"  Typhoon: {typhoon_name}", file=sys.stderr)
             print(f"  Latest bulletin: {latest_pdf}", file=sys.stderr)
         
-        # Step 3: Analyze the PDF (downloads automatically if URL)
+        # Step 3: Analyze the PDF and fetch advisory data in parallel
         if verbose:
-            print("\n[STEP 3] Analyzing PDF...", file=sys.stderr)
+            print("\n[STEP 3] Analyzing PDF and fetching advisory data (parallel)...", file=sys.stderr)
             print("-" * 80, file=sys.stderr)
         
-        data = analyze_pdf(latest_pdf, low_cpu_mode=low_cpu_mode, verbose=verbose)
+        data = analyze_pdf_and_advisory_parallel(latest_pdf, low_cpu_mode=low_cpu_mode, verbose=verbose)
         
         if not data:
             if verbose:
