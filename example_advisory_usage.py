@@ -11,7 +11,7 @@ def main():
     print("ADVISORY EXTRACTOR - USAGE EXAMPLES")
     print("="*70)
     print()
-    print("The advisory extractor parses rainfall warning tables from PDFs:")
+    print("The advisory extractor parses rainfall warnings from HTML pages:")
     print("  https://www.pagasa.dost.gov.ph/weather/weather-advisory")
     print()
     print("Usage Examples:")
@@ -20,27 +20,27 @@ def main():
     print("1. Scrape from live URL and extract:")
     print("   python advisory_scraper.py")
     print()
-    print("2. Test with random PDF from dataset:")
-    print("   python advisory_scraper.py --random")
+    print("2. Extract from web archive URL:")
+    print("   python advisory_scraper.py --archive")
     print()
-    print("3. Test with specific PDF (auto-detects file path):")
-    print("   python advisory_scraper.py 'dataset/pdfs_advisory/file.pdf'")
+    print("3. Extract from web archive with custom timestamp:")
+    print("   python advisory_scraper.py --archive --timestamp 20251108223833")
     print()
-    print("4. Extract from PDF URL (auto-detects URL):")
-    print("   python advisory_scraper.py 'https://example.com/advisory.pdf'")
+    print("4. Extract from custom URL:")
+    print("   python advisory_scraper.py 'https://example.com/weather/advisory'")
     print()
     print("5. JSON-only output (for piping):")
-    print("   python advisory_scraper.py --json --random")
+    print("   python advisory_scraper.py --json")
     print()
     print("="*70)
-    print("AUTO-DETECTION")
+    print("HTML PARSING")
     print("="*70)
     print()
-    print("The script automatically detects if your input is:")
-    print("- URL: Starts with http:// or https://")
-    print("- File path: Everything else")
-    print()
-    print("No need to use --url or --path flags anymore!")
+    print("The script parses HTML DOM to extract rainfall data:")
+    print("- Looks for commented text in 'weekly-content-adv' div")
+    print("- Extracts locations from all date columns (Today, Tomorrow, etc.)")
+    print("- Validates locations against consolidated_locations.csv")
+    print("- Stops at non-matching locations or 'Potential Impacts' text")
     print()
     print("="*70)
     print("OUTPUT FORMAT")
@@ -51,22 +51,14 @@ def main():
     print("- Orange: 100-200mm rainfall")
     print("- Yellow: 50-100mm rainfall")
     print()
-    print("Each level categorizes locations by island groups:")
-    print("- Luzon, Visayas, Mindanao, Other")
-    print()
     print("Example output:")
     print("""
 {
-  "source_file": "path/to/file.pdf",
+  "source_url": "https://www.pagasa.dost.gov.ph/weather/weather-advisory",
   "rainfall_warnings": {
-    "red": {
-      "Luzon": "Manila, Quezon City",
-      "Visayas": null,
-      "Mindanao": null,
-      "Other": null
-    },
-    "orange": {...},
-    "yellow": {...}
+    "red": ["Isabela", "Quirino", "Nueva Vizcaya", ...],
+    "orange": ["Pangasinan", "Cagayan", "Apayao", ...],
+    "yellow": ["Ilocos Norte", "Ilocos Sur", ...]
   }
 }
     """)

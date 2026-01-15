@@ -36,67 +36,64 @@ python verify_install.py
 
 ### 1. Weather Advisory Extractor: `advisory_scraper.py` ⭐ **NEW**
 
-Extract rainfall warning data from PAGASA weather advisory PDFs with automatic categorization by island groups.
+Extract rainfall warning data from PAGASA weather advisory HTML pages with automatic location validation.
 
 **Basic Usage:**
 ```bash
 # Scrape from live URL and extract
 python advisory_scraper.py
 
-# Test with random PDF from dataset
-python advisory_scraper.py --random
+# Extract from web archive URL
+python advisory_scraper.py --archive
 
-# Test with specific PDF (auto-detects file path)
-python advisory_scraper.py "dataset/pdfs_advisory/file.pdf"
+# Extract from web archive with custom timestamp
+python advisory_scraper.py --archive --timestamp 20251108223833
 
-# Extract from PDF URL (auto-detects URL)
-python advisory_scraper.py "https://example.com/advisory.pdf"
+# Extract from custom URL
+python advisory_scraper.py "https://example.com/weather/advisory"
+
+# Test with local HTML file
+python advisory_scraper.py "bin/pdf_divrender_sample.html"
 
 # JSON-only output
-python advisory_scraper.py --json --random
+python advisory_scraper.py --json
 ```
 
 **Features:**
-- ✓ **PDF extraction using pdfplumber** - Parses rainfall forecast tables from text-based PDFs
+- ✓ **HTML DOM parsing** - Extracts rainfall data from HTML comments and paragraph tags
 - ✓ **3 warning levels** - Red (>200mm), Orange (100-200mm), Yellow (50-100mm)
-- ✓ **Island group categorization** - Luzon, Visayas, Mindanao, Other
-- ✓ **Location matching** - Uses consolidated locations database
-- ✓ **Auto-detection** - Automatically detects if input is URL or file path
-- ✓ **Multiple input modes** - Live URL, random, file path, or URL
+- ✓ **Location validation** - Validates against 26,808 locations from consolidated_locations.csv
+- ✓ **Directional modifiers** - Handles "Northern Samar", "Occidental Mindoro", etc.
+- ✓ **Column break detection** - Intelligently parses multi-column table data
+- ✓ **Web Archive support** - Can extract from archived PAGASA pages
+- ✓ **Multiple input modes** - Live URL, web archive, custom URL, or local file
 - ✓ **JSON output** - Structured data ready for processing
-- ✓ Fetches live page from PAGASA website
-- ✓ Automatically downloads PDFs to `dataset/pdfs_advisory/`
 
 **Arguments:**
 
 | Argument | Type | Description |
 |----------|------|-------------|
-| `source` | string | PDF file path or URL (auto-detected, optional) |
-| `--random` | flag | Extract from random PDF in dataset |
+| `source` | string | URL or local file path (optional) |
+| `--archive` | flag | Use web archive URL with timestamp |
+| `--timestamp` | string | Web archive timestamp (default: 20251108223833) |
 | `--json` | flag | Output only JSON (no progress messages) |
-
-**Note:** This script only works with text-based PDFs (not scanned images). Most PAGASA PDFs are text-based. See `OCR_SETUP.md` for more info.
 
 **Output Format:**
 ```json
 {
-  "source_file": "path/to/file.pdf",
+  "source_url": "https://www.pagasa.dost.gov.ph/weather/weather-advisory",
   "rainfall_warnings": {
-    "red": {
-      "Luzon": "Location1, Location2",
-      "Visayas": null,
-      "Mindanao": null,
-      "Other": null
-    },
-    "orange": {...},
-    "yellow": {...}
+    "red": ["Isabela", "Quirino", "Nueva Vizcaya", ...],
+    "orange": ["Pangasinan", "Cagayan", "Apayao", ...],
+    "yellow": ["Ilocos Norte", "Ilocos Sur", ...]
   }
 }
 ```
 
-**Target URL:**
+**Target URLs:**
 ```
-https://www.pagasa.dost.gov.ph/weather/weather-advisory
+Live: https://www.pagasa.dost.gov.ph/weather/weather-advisory
+Archive: https://web.archive.org/web/{timestamp}/https://www.pagasa.dost.gov.ph/weather/weather-advisory
 ```
 
 **How It Works:**
