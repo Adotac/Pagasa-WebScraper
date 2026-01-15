@@ -197,9 +197,9 @@ def display_results(data):
     rainfall_found = False
     
     rainfall_levels = {
-        1: "Red Warning - Heavy to Intense Rainfall (>200mm/24hr)",
-        2: "Orange Warning - Moderate to Heavy Rainfall (100-200mm/24hr)",
-        3: "Yellow Warning - Light to Moderate Rainfall (50-100mm/24hr)"
+        1: "Red Warning - Intense Rainfall (>200mm/24hr)",
+        2: "Orange Warning - Heavy Rainfall (100-200mm/24hr)",
+        3: "Yellow Warning - Moderate Rainfall (50-100mm/24hr)"
     }
     
     for level in range(1, 4):
@@ -322,7 +322,7 @@ def main():
         
         # Fetch live advisory data and merge with PDF extraction results
         advisory_data = fetch_live_advisory_data()
-        if advisory_data and any(len(advisory_data.get(level, [])) > 0 for level in ['red', 'orange', 'yellow']):
+        if advisory_data and any(advisory_data.get(level, []) for level in ['red', 'orange', 'yellow']):
             # Replace rainfall warnings with live advisory data
             # Map: red -> rainfall_warning_tags1, orange -> rainfall_warning_tags2, yellow -> rainfall_warning_tags3
             data['rainfall_warning_tags1'] = advisory_data.get('red', [])
@@ -341,8 +341,8 @@ def main():
                     for island_group in ['Luzon', 'Visayas', 'Mindanao', 'Other']:
                         loc_str = old_format.get(island_group)
                         if loc_str:
-                            # Split by comma and add to list
-                            locations.extend([loc.strip() for loc in loc_str.split(',')])
+                            # Split by comma and add to list, filtering out empty strings
+                            locations.extend([loc.strip() for loc in loc_str.split(',') if loc.strip()])
                 data[tag_key] = locations
         
         # Display in readable format
