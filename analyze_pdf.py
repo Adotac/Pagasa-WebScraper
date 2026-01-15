@@ -167,36 +167,6 @@ def display_results(data):
     if not signal_found:
         print("  [OK] No tropical cyclone wind signals in effect")
     
-    # Rainfall Warnings
-    print("\n[RAINFALL WARNINGS]")
-    rainfall_found = False
-    
-    rainfall_levels = {
-        1: "Level 1 - Intense Rainfall (>30mm/hr, RED)",
-        2: "Level 2 - Heavy Rainfall (15-30mm/hr, ORANGE)",
-        3: "Level 3 - Heavy Rainfall Advisory (7.5-15mm/hr, YELLOW)"
-    }
-    
-    for level in range(1, 4):
-        tag_key = f'rainfall_warning_tags{level}'
-        tag = data.get(tag_key, {})
-        
-        # Check if any island group has locations
-        has_locations = any(tag.get(ig) for ig in ['Luzon', 'Visayas', 'Mindanao', 'Other'])
-        
-        if has_locations:
-            rainfall_found = True
-            print(f"\n  {rainfall_levels[level]}:")
-            for island_group in ['Luzon', 'Visayas', 'Mindanao', 'Other']:
-                locations = tag.get(island_group)
-                if locations:
-                    print(f"    {island_group:12} -> {locations}")
-        else:
-            print(f"\n  {rainfall_levels[level]}: No warnings")
-    
-    if not rainfall_found:
-        print("  [OK] No rainfall warnings issued")
-    
     print("\n" + "=" * 80 + "\n")
 
 def main():

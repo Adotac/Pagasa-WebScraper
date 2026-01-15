@@ -283,29 +283,20 @@ def analyze_pdf_and_advisory_parallel(pdf_url_or_path, low_cpu_mode=False, verbo
     
     # Merge advisory data with PDF extraction results
     if advisory_data and any(advisory_data.get(level, []) for level in ['red', 'orange', 'yellow']):
-        # Replace rainfall warnings with live advisory data
+        # Add rainfall warnings from live advisory data
         # Map: red -> rainfall_warning_tags1, orange -> rainfall_warning_tags2, yellow -> rainfall_warning_tags3
         pdf_data['rainfall_warning_tags1'] = advisory_data.get('red', [])
         pdf_data['rainfall_warning_tags2'] = advisory_data.get('orange', [])
         pdf_data['rainfall_warning_tags3'] = advisory_data.get('yellow', [])
         if verbose:
-            print("[INFO] Merged live advisory data with PDF extraction", file=sys.stderr)
+            print("[INFO] Added live advisory data to PDF extraction", file=sys.stderr)
     else:
-        # If advisory fetch fails or returns empty data, convert existing IslandGroupType format to list format
+        # If advisory fetch fails or returns empty data, set empty rainfall warnings
         if verbose:
-            print("[INFO] Using PDF-extracted rainfall data (advisory fetch failed or returned no data)", file=sys.stderr)
-        for level in range(1, 4):
-            tag_key = f'rainfall_warning_tags{level}'
-            old_format = pdf_data.get(tag_key, {})
-            # Convert IslandGroupType dict to list of locations
-            locations = []
-            if isinstance(old_format, dict):
-                for island_group in ['Luzon', 'Visayas', 'Mindanao', 'Other']:
-                    loc_str = old_format.get(island_group)
-                    if loc_str:
-                        # Split by comma and add to list, filtering out empty strings
-                        locations.extend([loc.strip() for loc in loc_str.split(',') if loc.strip()])
-            pdf_data[tag_key] = locations
+            print("[INFO] No advisory data available, rainfall warnings will be empty", file=sys.stderr)
+        pdf_data['rainfall_warning_tags1'] = []
+        pdf_data['rainfall_warning_tags2'] = []
+        pdf_data['rainfall_warning_tags3'] = []
     
     return pdf_data
 
