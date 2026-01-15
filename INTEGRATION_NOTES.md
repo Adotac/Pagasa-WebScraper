@@ -4,6 +4,8 @@
 
 The `advisory_scraper.py` has been integrated with `main.py` using **parallel execution** for optimal performance. PDF analysis and advisory scraping run simultaneously, significantly reducing execution time.
 
+**Important**: Rainfall warnings are **only** extracted from the advisory scraper. PDF analysis no longer includes rainfall data to eliminate redundancy.
+
 ## Performance Optimization
 
 ### Execution Model
@@ -26,38 +28,52 @@ Advisory Scraping (15-20s) }
 
 ### analyze_pdf.py
 - **Purpose**: Standalone PDF extraction tool
-- **Output**: Original `IslandGroupType` format for rainfall warnings
-- **Usage**: Can be used independently without advisory integration
-- **No changes**: Keeps original functionality intact
+- **Output**: Typhoon data only (location, movement, windspeed, signal warnings)
+- **No Rainfall Data**: Rainfall warnings removed to eliminate redundancy
+- **Usage**: Can be used independently for typhoon-specific data
 
 ### main.py
 - **Purpose**: Main pipeline with parallel optimization
 - **Integration Point**: Runs both PDF analysis and advisory scraping in parallel
-- **Merging**: Combines results after both tasks complete
-- **Output**: Consistent `string[]` format for rainfall warnings
+- **Merging**: Adds rainfall data from advisory scraper to PDF extraction results
+- **Output**: Complete data with TypeScript-compliant `string[]` format for rainfall warnings
 
 ## Changes Made
 
 ### 1. Data Format
 
-**analyze_pdf.py Output (Original IslandGroupType):**
+**analyze_pdf.py Output (Typhoon Data Only):**
 ```python
-rainfall_warning_tags1: {
-  Luzon: "Location1, Location2",
-  Visayas: null,
-  Mindanao: null,
-  Other: null
+{
+  "typhoon_location_text": "...",
+  "typhoon_movement": "...",
+  "typhoon_windspeed": "...",
+  "signal_warning_tags1": {...},
+  ...
+  // No rainfall_warning_tags fields
 }
 ```
 
-**main.py Output (Converted to string[]):**
+**main.py Output (With Advisory Data):**
 ```python
-rainfall_warning_tags1: ["Location1", "Location2"]
-rainfall_warning_tags2: ["Location3"]
-rainfall_warning_tags3: []
+{
+  "typhoon_location_text": "...",
+  "typhoon_movement": "...",
+  "signal_warning_tags1": {...},
+  ...
+  "rainfall_warning_tags1": ["Location1", "Location2"],
+  "rainfall_warning_tags2": ["Location3"],
+  "rainfall_warning_tags3": []
+}
 ```
 
-### 2. Parallel Execution Flow
+### 2. Rainfall Data Source
+
+**Exclusive Source**: Advisory Scraper
+- PDF extraction no longer includes rainfall warnings
+- All rainfall data comes from `advisory_scraper.py`
+- Empty arrays returned when advisory fetch fails
+- Eliminates redundancy and conflicting data sources
 
 ```python
 # In main.py
@@ -79,13 +95,27 @@ def analyze_pdf_and_advisory_parallel(pdf_path):
 
 ### Using analyze_pdf.py (Standalone)
 
-analyze_pdf.py works independently without advisory integration:
+analyze_pdf.py extracts only typhoon-specific data (no rainfall warnings):
 
 ```bash
-# Analyze a PDF - no advisory integration
+# Analyze a PDF - extracts typhoon location, movement, windspeed, and signals
 python analyze_pdf.py "path/to/bulletin.pdf"
 
-# Output shows original IslandGroupType format
+# Output shows typhoon info and signal warnings only
+# Rainfall warnings section removed
+```
+
+**Output Example:**
+```
+[BASIC INFORMATION]
+  Issued:       2022-12-10 11:00:00
+  Location:     110 km North Northeast of Virac, Catanduanes
+  Wind Speed:   Maximum sustained winds of 45 km/h
+  Movement:     Northwestward at 20 km/h
+
+[SIGNAL WARNINGS (TCWS)]
+  Signal 1:
+    Luzon -> Catanduanes, eastern Camarines Sur
 ```
 
 ### Using main.py (Optimized Pipeline)
