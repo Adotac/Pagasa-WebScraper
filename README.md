@@ -558,3 +558,29 @@ Comprehensive documentation is available in the `docs/` folder:
 - **[GUI_VISUAL_DOCUMENTATION_2025.md](docs/GUI_VISUAL_DOCUMENTATION_2025.md)** - Complete visual reference with interface layouts, color schemes, button specifications, state machines, and workflows
 - **[PDF_ANNOTATION_IMPLEMENTATION.md](docs/PDF_ANNOTATION_IMPLEMENTATION.md)** - Technical implementation details, code architecture, and metrics
 - **[PDF_STRUCTURE_ANALYSIS.md](docs/PDF_STRUCTURE_ANALYSIS.md)** - Detailed analysis of PAGASA bulletin PDF structure
+
+---
+
+## Credits & Data Sources
+
+This project builds upon valuable datasets from the community:
+
+### PDF Bulletins
+**Source:** [pagasa-parser/bulletin-archive](https://github.com/pagasa-parser/bulletin-archive)  
+1,000+ PAGASA typhoon bulletin PDFs (2021-2025) used for extraction and testing.
+
+### Location Data
+**Source:** [Eerkz/PSGC-scraper](https://github.com/Eerkz/PSGC-scraper)  
+Philippine Standard Geographic Code (PSGC) dataset containing:
+- 26,808 validated Philippine locations
+- 42,028 barangays
+- 1,487 municipalities  
+- 149 cities
+- 83 provinces
+- 18 regions
+
+### Weather Data
+**Source:** [PAGASA (Philippine Atmospheric, Geophysical and Astronomical Services Administration)](https://www.pagasa.dost.gov.ph/)  
+Official typhoon bulletins and weather advisories.
+
+**Thank you** to these projects and PAGASA for making this data accessible!
