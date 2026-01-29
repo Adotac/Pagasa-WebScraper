@@ -1118,12 +1118,18 @@ class TyphoonBulletinExtractor:
         # - "Severe Tropical Storm NAME"
         # - "Low Pressure Area (formerly WILMA)" (for final bulletins)
         
+        # Common words that are NOT typhoon names (to filter out false matches)
+        EXCLUDED_WORDS = {
+            'ISSUED', 'AND', 'THE', 'HAS', 'WILL', 'WAS', 'ARE', 'FOR', 'WITH',
+            'FROM', 'INTO', 'OVER', 'NEAR', 'MADE', 'MAY', 'CAN', 'BEEN'
+        }
+        
         # Split text into lines for more precise extraction
         lines = text.split('\n')
         
-        # Look for "TROPICAL CYCLONE BULLETIN" line, then get the next line
+        # Look for "TROPICAL CYCLONE BULLETIN" or "TROPICAL CYCLONE ADVISORY" line
         for i, line in enumerate(lines[:30]):  # Search only first 30 lines
-            if 'TROPICAL CYCLONE BULLETIN' in line.upper():
+            if 'TROPICAL CYCLONE BULLETIN' in line.upper() or 'TROPICAL CYCLONE ADVISORY' in line.upper():
                 # Check the next line for typhoon category and name
                 if i + 1 < len(lines):
                     next_line = lines[i + 1].strip()
@@ -1135,15 +1141,18 @@ class TyphoonBulletinExtractor:
                     
                     if match:
                         typhoon_name = match.group(1).upper()
-                        return typhoon_name
+                        if typhoon_name not in EXCLUDED_WORDS:
+                            return typhoon_name
                     
                     # Pattern 1b: Active typhoon without quotes - "Tropical Depression WILMA", "Typhoon PEPITO", etc.
-                    pattern = r'(?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+([A-Z][A-Za-z]*)'
+                    # Must be followed by end of line or non-alphanumeric to avoid partial matches
+                    pattern = r'(?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+([A-Z][A-Za-z]*)(?:\s|$|\()'
                     match = re.search(pattern, next_line, re.IGNORECASE)
                     
                     if match:
                         typhoon_name = match.group(1).upper()
-                        return typhoon_name
+                        if typhoon_name not in EXCLUDED_WORDS and len(typhoon_name) >= 3:
+                            return typhoon_name
                     
                     # Pattern 2: Low Pressure Area (formerly NAME) - for final bulletins
                     pattern_lpa = r'Low\s+Pressure\s+Area\s+\(formerly\s+([A-Z][A-Za-z]*)\)'
@@ -1151,30 +1160,40 @@ class TyphoonBulletinExtractor:
                     
                     if match_lpa:
                         typhoon_name = match_lpa.group(1).upper()
-                        return typhoon_name
+                        if typhoon_name not in EXCLUDED_WORDS:
+                            return typhoon_name
         
-        # Fallback pattern: search in first page for any pattern like above
-        # Try quoted pattern first (both straight and curly quotes)
-        # Handles U+201C and U+201D (curly quotes) as well as regular quotes
-        pattern_quoted = r'(?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+[\u201c\u201d""]([A-Z][A-Za-z]*)[\u201c\u201d""]'
-        match = re.search(pattern_quoted, text[:2000], re.IGNORECASE)
-        if match:
-            typhoon_name = match.group(1).upper()
-            return typhoon_name
-        
-        # Try active typhoon pattern
-        pattern = r'(?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+([A-Z][A-Za-z]*)'
-        match = re.search(pattern, text[:2000], re.IGNORECASE)
-        if match:
-            typhoon_name = match.group(1).upper()
-            return typhoon_name
-        
-        # Try LPA pattern
-        pattern_lpa = r'Low\s+Pressure\s+Area\s+\(formerly\s+([A-Z][A-Za-z]*)\)'
-        match_lpa = re.search(pattern_lpa, text[:2000], re.IGNORECASE)
-        if match_lpa:
-            typhoon_name = match_lpa.group(1).upper()
-            return typhoon_name
+        # Fallback: Only search within bulletin/advisory context (not entire page)
+        # Look for bulletin header in the text
+        bulletin_match = re.search(r'TROPICAL CYCLONE (?:BULLETIN|ADVISORY)', text, re.IGNORECASE)
+        if bulletin_match:
+            # Extract text starting from the bulletin header (next 500 chars)
+            start_pos = bulletin_match.start()
+            search_text = text[start_pos:start_pos + 500]
+            
+            # Try quoted pattern first (both straight and curly quotes)
+            pattern_quoted = r'(?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+[\u201c\u201d""]([A-Z][A-Za-z]*)[\u201c\u201d""]'
+            match = re.search(pattern_quoted, search_text, re.IGNORECASE)
+            if match:
+                typhoon_name = match.group(1).upper()
+                if typhoon_name not in EXCLUDED_WORDS:
+                    return typhoon_name
+            
+            # Try active typhoon pattern with word boundary
+            pattern = r'(?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+([A-Z][A-Za-z]*)(?:\s|$|\()'
+            match = re.search(pattern, search_text, re.IGNORECASE)
+            if match:
+                typhoon_name = match.group(1).upper()
+                if typhoon_name not in EXCLUDED_WORDS and len(typhoon_name) >= 3:
+                    return typhoon_name
+            
+            # Try LPA pattern
+            pattern_lpa = r'Low\s+Pressure\s+Area\s+\(formerly\s+([A-Z][A-Za-z]*)\)'
+            match_lpa = re.search(pattern_lpa, search_text, re.IGNORECASE)
+            if match_lpa:
+                typhoon_name = match_lpa.group(1).upper()
+                if typhoon_name not in EXCLUDED_WORDS:
+                    return typhoon_name
         
         return "Typhoon name not found"
     
