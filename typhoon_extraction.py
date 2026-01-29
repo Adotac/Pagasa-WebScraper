@@ -113,13 +113,29 @@ class DateTimeExtractor:
     
     @staticmethod
     def normalize_datetime(datetime_str: str) -> str:
-        """Normalize datetime string to standard format"""
+        """
+        Normalize datetime string to UTC ISO 8601 format.
+        PAGASA bulletins are issued in Philippine time (UTC+8).
+        Returns format: "2025-12-04T03:00:00+0000"
+        """
         if not datetime_str:
             return None
         
         try:
+            # Parse the datetime string
             dt = pd.to_datetime(datetime_str)
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # PAGASA operates in Philippine time (UTC+8)
+            # Add timezone info as UTC+8
+            from datetime import timezone, timedelta
+            ph_tz = timezone(timedelta(hours=8))
+            dt_localized = dt.replace(tzinfo=ph_tz)
+            
+            # Convert to UTC
+            dt_utc = dt_localized.astimezone(timezone.utc)
+            
+            # Format as ISO 8601 with timezone: "YYYY-MM-DDTHH:MM:SS+0000"
+            return dt_utc.strftime("%Y-%m-%dT%H:%M:%S+0000")
         except:
             return datetime_str
 
@@ -1084,6 +1100,7 @@ class TyphoonBulletinExtractor:
         issue_datetime = self.datetime_extractor.extract_issue_datetime(full_text)
         normalized_datetime = self.datetime_extractor.normalize_datetime(issue_datetime)
         
+        typhoon_name = self._extract_typhoon_name(full_text)
         typhoon_location = self._extract_typhoon_location(full_text)
         typhoon_movement = self._extract_typhoon_movement(full_text)
         typhoon_windspeed = self._extract_typhoon_windspeed(full_text)
@@ -1092,6 +1109,7 @@ class TyphoonBulletinExtractor:
         
         # Build result structure
         result = {
+            'typhoon_name': typhoon_name,
             'typhoon_location_text': typhoon_location,
             'typhoon_movement': typhoon_movement,
             'typhoon_windspeed': typhoon_windspeed,
@@ -1104,6 +1122,110 @@ class TyphoonBulletinExtractor:
         }
         
         return result
+    
+    def _extract_typhoon_name(self, text: str) -> str:
+        """Extract typhoon name from bulletin header - returns full category + name"""
+        # Returns the full typhoon classification with name:
+        # - "Tropical Depression WILMA"
+        # - "Tropical Storm ROSAL"
+        # - "Tropical Storm "KARDING""
+        # - "Typhoon PEPITO"
+        # - "Super Typhoon LEON"
+        # - "Low Pressure Area (formerly WILMA)" (for final bulletins)
+        
+        # Common words that are NOT typhoon names (to filter out false matches)
+        EXCLUDED_WORDS = {
+            'ISSUED', 'AND', 'THE', 'HAS', 'WILL', 'WAS', 'ARE', 'FOR', 'WITH',
+            'FROM', 'INTO', 'OVER', 'NEAR', 'MADE', 'MAY', 'CAN', 'BEEN'
+        }
+        
+        # Split text into lines for more precise extraction
+        lines = text.split('\n')
+        
+        # Look for "TROPICAL CYCLONE BULLETIN" or "TROPICAL CYCLONE ADVISORY" line
+        for i, line in enumerate(lines[:30]):  # Search only first 30 lines
+            if 'TROPICAL CYCLONE BULLETIN' in line.upper() or 'TROPICAL CYCLONE ADVISORY' in line.upper():
+                # Check the next line for typhoon category and name
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    
+                    # Pattern 1a: Active typhoon with quotes (both straight and curly)
+                    # Captures the full "Category NAME" string
+                    pattern_quoted = r'((?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+[\u201c\u201d""](?:[A-Z][A-Za-z]*)[\u201c\u201d""](?:\s*\([^)]*\))?)'
+                    match = re.search(pattern_quoted, next_line, re.IGNORECASE)
+                    
+                    if match:
+                        full_name = match.group(1).strip()
+                        # Extract just the name part to check exclusions
+                        name_match = re.search(r'[\u201c\u201d""]([A-Z][A-Za-z]*)[\u201c\u201d""]', full_name, re.IGNORECASE)
+                        if name_match:
+                            name_only = name_match.group(1).upper()
+                            if name_only not in EXCLUDED_WORDS:
+                                return full_name
+                    
+                    # Pattern 1b: Active typhoon without quotes - "Tropical Depression WILMA"
+                    # Captures the full "Category NAME" or "Category NAME (INTERNATIONAL)"
+                    pattern = r'((?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+([A-Z][A-Za-z]*)(?:\s*\([^)]*\))?)'
+                    match = re.search(pattern, next_line, re.IGNORECASE)
+                    
+                    if match:
+                        full_name = match.group(1).strip()
+                        name_only = match.group(2).upper()
+                        if name_only not in EXCLUDED_WORDS and len(name_only) >= 3:
+                            return full_name
+                    
+                    # Pattern 2: Low Pressure Area (formerly NAME) - for final bulletins
+                    pattern_lpa = r'(Low\s+Pressure\s+Area\s+\(formerly\s+[A-Z][A-Za-z]*(?:\s*\([^)]*\))?\))'
+                    match_lpa = re.search(pattern_lpa, next_line, re.IGNORECASE)
+                    
+                    if match_lpa:
+                        full_name = match_lpa.group(1).strip()
+                        # Extract just the name to check exclusions
+                        name_match = re.search(r'formerly\s+([A-Z][A-Za-z]*)', full_name, re.IGNORECASE)
+                        if name_match:
+                            name_only = name_match.group(1).upper()
+                            if name_only not in EXCLUDED_WORDS:
+                                return full_name
+        
+        # Fallback: Only search within bulletin/advisory context (not entire page)
+        bulletin_match = re.search(r'TROPICAL CYCLONE (?:BULLETIN|ADVISORY)', text, re.IGNORECASE)
+        if bulletin_match:
+            # Extract text starting from the bulletin header (next 500 chars)
+            start_pos = bulletin_match.start()
+            search_text = text[start_pos:start_pos + 500]
+            
+            # Try quoted pattern first
+            pattern_quoted = r'((?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+[\u201c\u201d""](?:[A-Z][A-Za-z]*)[\u201c\u201d""](?:\s*\([^)]*\))?)'
+            match = re.search(pattern_quoted, search_text, re.IGNORECASE)
+            if match:
+                full_name = match.group(1).strip()
+                name_match = re.search(r'[\u201c\u201d""]([A-Z][A-Za-z]*)[\u201c\u201d""]', full_name, re.IGNORECASE)
+                if name_match:
+                    name_only = name_match.group(1).upper()
+                    if name_only not in EXCLUDED_WORDS:
+                        return full_name
+            
+            # Try active typhoon pattern
+            pattern = r'((?:Tropical\s+Depression|Tropical\s+Storm|Severe\s+Tropical\s+Storm|Typhoon|Super\s+Typhoon)\s+([A-Z][A-Za-z]*)(?:\s*\([^)]*\))?)'
+            match = re.search(pattern, search_text, re.IGNORECASE)
+            if match:
+                full_name = match.group(1).strip()
+                name_only = match.group(2).upper()
+                if name_only not in EXCLUDED_WORDS and len(name_only) >= 3:
+                    return full_name
+            
+            # Try LPA pattern
+            pattern_lpa = r'(Low\s+Pressure\s+Area\s+\(formerly\s+[A-Z][A-Za-z]*(?:\s*\([^)]*\))?\))'
+            match_lpa = re.search(pattern_lpa, search_text, re.IGNORECASE)
+            if match_lpa:
+                full_name = match_lpa.group(1).strip()
+                name_match = re.search(r'formerly\s+([A-Z][A-Za-z]*)', full_name, re.IGNORECASE)
+                if name_match:
+                    name_only = name_match.group(1).upper()
+                    if name_only not in EXCLUDED_WORDS:
+                        return full_name
+        
+        return "Typhoon name not found"
     
     def _extract_typhoon_location(self, text: str) -> str:
         """Extract current typhoon location - exact text from 'Location of Center' section"""
