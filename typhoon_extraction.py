@@ -113,13 +113,29 @@ class DateTimeExtractor:
     
     @staticmethod
     def normalize_datetime(datetime_str: str) -> str:
-        """Normalize datetime string to standard format"""
+        """
+        Normalize datetime string to UTC ISO 8601 format.
+        PAGASA bulletins are issued in Philippine time (UTC+8).
+        Returns format: "2025-12-04T03:00:00+0000"
+        """
         if not datetime_str:
             return None
         
         try:
+            # Parse the datetime string
             dt = pd.to_datetime(datetime_str)
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # PAGASA operates in Philippine time (UTC+8)
+            # Add timezone info as UTC+8
+            from datetime import timezone, timedelta
+            ph_tz = timezone(timedelta(hours=8))
+            dt_localized = dt.replace(tzinfo=ph_tz)
+            
+            # Convert to UTC
+            dt_utc = dt_localized.astimezone(timezone.utc)
+            
+            # Format as ISO 8601 with timezone: "YYYY-MM-DDTHH:MM:SS+0000"
+            return dt_utc.strftime("%Y-%m-%dT%H:%M:%S+0000")
         except:
             return datetime_str
 
