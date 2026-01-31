@@ -7,9 +7,12 @@ Usage: python analyze_pdf.py "<path_to_pdf>"
        python analyze_pdf.py "<path_to_pdf>" --low-cpu    # Limit CPU to 30%
        python analyze_pdf.py "<path_to_pdf>" --metrics    # Show performance metrics
        python analyze_pdf.py "<path_to_pdf>" --json       # Raw JSON output
+       python analyze_pdf.py "<path_to_pdf>" --extract-image --stream      # Extract image as stream
+       python analyze_pdf.py "<path_to_pdf>" --extract-image --save-image  # Save image to file
 """
 
 from typhoon_extraction import TyphoonBulletinExtractor
+from typhoon_image_extractor import TyphoonImageExtractor
 import json
 import sys
 import tempfile
@@ -264,15 +267,30 @@ def main():
     cpu_samples = []
     low_cpu_mode = "--low-cpu" in sys.argv
     show_metrics = "--metrics" in sys.argv
+    extract_image = "--extract-image" in sys.argv
+    stream_image = "--stream" in sys.argv
+    save_image_flag = "--save-image" in sys.argv
+    json_output = "--json" in sys.argv
+    
+    # Validate image extraction flags
+    if extract_image and not (stream_image or save_image_flag):
+        print("Error: --extract-image requires either --stream or --save-image")
+        sys.exit(1)
+    
+    if extract_image and stream_image and save_image_flag:
+        print("Error: Cannot use both --stream and --save-image")
+        sys.exit(1)
     
     if low_cpu_mode:
         print("[*] Low CPU mode enabled - limiting to ~30% CPU usage\n")
     
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or sys.argv[1].startswith('--'):
         print("Usage: python analyze_pdf.py \"<path_to_pdf>\"")
         print("       python analyze_pdf.py \"<pdf_url>\"")
         print("       python analyze_pdf.py --random")
         print("       python analyze_pdf.py \"<path_to_pdf>\" --low-cpu    # Limit CPU to 30%")
+        print("       python analyze_pdf.py \"<path_to_pdf>\" --extract-image --stream")
+        print("       python analyze_pdf.py \"<path_to_pdf>\" --extract-image --save-image")
         print("\nExample:")
         print('  python analyze_pdf.py "dataset/pdfs/pagasa-20-19W/PAGASA_20-19W_Pepito_SWB#02.pdf"')
         print('  python analyze_pdf.py "https://example.com/bulletin.pdf"')
@@ -337,6 +355,9 @@ def main():
     
     # Extract data
     extractor = TyphoonBulletinExtractor()
+    img_stream = None
+    img_path = None
+    
     try:
         extraction_start = time.time()
         
@@ -355,14 +376,51 @@ def main():
             print(f"\n[TIME] Execution time: {elapsed:.2f}s")
             sys.exit(1)
         
-        # Display in readable format
-        display_results(data)
+        # Extract image if requested
+        if extract_image:
+            print("\n[IMAGE EXTRACTION]")
+            img_extractor = TyphoonImageExtractor()
+            
+            if save_image_flag:
+                # Generate filename based on typhoon name and datetime
+                typhoon_name = data.get('typhoon_name', 'unknown').replace(' ', '_')
+                datetime_str = data.get('updated_datetime', '').replace(':', '-').replace(' ', '_')
+                if not datetime_str:
+                    datetime_str = time.strftime('%Y%m%d_%H%M%S')
+                img_filename = f"typhoon_track_{typhoon_name}_{datetime_str}.png"
+                img_path = str(Path.cwd() / img_filename)
+                
+                result = img_extractor.extract_image(pdf_path_to_analyze, save_path=img_path)
+                if result:
+                    img_stream, img_path = result
+                    print(f"  Image saved to: {img_path}")
+                    print(f"  Image size: {len(img_stream.getvalue())} bytes")
+                else:
+                    print("  Failed to extract image from PDF")
+            else:
+                # Stream mode
+                img_stream = img_extractor.extract_image(pdf_path_to_analyze)
+                if img_stream:
+                    print(f"  Image extracted to memory stream")
+                    print(f"  Image size: {len(img_stream.getvalue())} bytes")
+                else:
+                    print("  Failed to extract image from PDF")
         
-        # Option to show raw JSON
-        if len(sys.argv) > 2 and sys.argv[2] == "--json":
-            print("RAW JSON OUTPUT:")
+        # Display in readable format or JSON
+        if json_output:
+            print("\nRAW JSON OUTPUT:")
             print("=" * 80)
-            print(json.dumps(data, indent=2))
+            if extract_image and stream_image and img_stream:
+                # For stream mode, output as tuple with base64
+                import base64
+                img_base64 = base64.b64encode(img_stream.getvalue()).decode('utf-8')
+                output = [data, img_base64]
+                print(json.dumps(output, indent=2))
+            else:
+                print(json.dumps(data, indent=2))
+        else:
+            display_results(data)
+            
     finally:
         # Clean up extractor to free resources
         del extractor

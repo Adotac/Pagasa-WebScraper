@@ -20,6 +20,9 @@ Options:
     --verbose                           # Show progress messages (to stderr)
     --low-cpu                           # Limit CPU usage to ~30%
     --metrics                           # Show performance metrics (to stderr)
+    --extract-image                     # Extract typhoon track image (requires --stream or --save-image)
+    --stream                            # Return image as base64 stream with JSON (use with --extract-image)
+    --save-image                        # Save image to file (use with --extract-image)
 
 Examples:
     python main.py                                      # Pure JSON output
@@ -27,6 +30,8 @@ Examples:
     python main.py > output.json                        # Save JSON to file
     python main.py --verbose 2>/dev/null                # JSON only (suppress logs)
     python main.py | jq '.data.typhoon_windspeed'       # Parse with jq
+    python main.py --extract-image --stream             # Extract image as base64 stream
+    python main.py --extract-image --save-image         # Extract and save image to file
 """
 
 import sys
@@ -37,6 +42,7 @@ import os
 from pathlib import Path
 from scrape_bulletin import scrape_bulletin
 from typhoon_extraction import TyphoonBulletinExtractor
+from typhoon_image_extractor import TyphoonImageExtractor
 import requests
 import tempfile
 from urllib.parse import urlparse
@@ -44,6 +50,7 @@ from bs4 import BeautifulSoup
 from contextlib import contextmanager
 from advisory_scraper import scrape_and_extract
 from concurrent.futures import ThreadPoolExecutor
+import base64
 
 
 @contextmanager
@@ -387,6 +394,20 @@ def main():
     low_cpu_mode = '--low-cpu' in sys.argv
     show_metrics = '--metrics' in sys.argv
     verbose = '--verbose' in sys.argv
+    extract_image = '--extract-image' in sys.argv
+    stream_image = '--stream' in sys.argv
+    save_image_flag = '--save-image' in sys.argv
+    
+    # Validate image extraction flags
+    if extract_image and not (stream_image or save_image_flag):
+        if verbose:
+            print("Error: --extract-image requires either --stream or --save-image", file=sys.stderr)
+        sys.exit(1)
+    
+    if extract_image and stream_image and save_image_flag:
+        if verbose:
+            print("Error: Cannot use both --stream and --save-image", file=sys.stderr)
+        sys.exit(1)
     
     # Filter out flags to get source
     args = [arg for arg in sys.argv[1:] if not arg.startswith('--')]
@@ -395,7 +416,10 @@ def main():
     if args:
         source = args[0]
     else:
-        default_html = Path(__file__).parent / "bin" / "PAGASA.html"
+        default_html = Path(__file__).parent / "bin" / "PAGASA BULLETIN PAGE" / "PAGASA.html"
+        if not default_html.exists():
+            # Try old path for backward compatibility
+            default_html = Path(__file__).parent / "bin" / "PAGASA.html"
         if not default_html.exists():
             if verbose:
                 print("Error: Default HTML file not found at bin/PAGASA.html", file=sys.stderr)
@@ -460,13 +484,81 @@ def main():
                 print("Error: Failed to extract data from PDF", file=sys.stderr)
             sys.exit(1)
         
-        # Step 4: Display results - always output JSON by default
+        # Step 4: Extract image if requested (only for single PDF analysis in main.py)
+        img_stream = None
+        img_path = None
+        
+        if extract_image:
+            if verbose:
+                print("\n[STEP 4] Extracting typhoon track image...", file=sys.stderr)
+                print("-" * 80, file=sys.stderr)
+            
+            img_extractor = TyphoonImageExtractor()
+            
+            # Determine the tab index from the typhoon data
+            # For main.py, we're always processing the first typhoon (tab index 1)
+            tab_index = 1
+            
+            if save_image_flag:
+                # Generate filename based on typhoon name and datetime
+                safe_typhoon_name = typhoon_name.replace(' ', '_').replace('"', '')
+                datetime_str = data.get('updated_datetime', '').replace(':', '-').replace(' ', '_')
+                if not datetime_str:
+                    datetime_str = time.strftime('%Y%m%d_%H%M%S')
+                img_filename = f"typhoon_track_{safe_typhoon_name}_{datetime_str}.png"
+                img_path = str(Path.cwd() / img_filename)
+                
+                # Try to extract from HTML first, fallback to PDF
+                if source.startswith('http') or Path(source).suffix.lower() in ['.html', '.htm']:
+                    result = img_extractor.extract_image(source, tab_index, img_path)
+                else:
+                    # If source is not HTML, extract from PDF
+                    result = img_extractor.extract_image(latest_pdf, tab_index, img_path)
+                
+                if result:
+                    img_stream, img_path = result
+                    if verbose:
+                        print(f"  Image saved to: {img_path}", file=sys.stderr)
+                        print(f"  Image size: {len(img_stream.getvalue())} bytes", file=sys.stderr)
+                else:
+                    if verbose:
+                        print("  Failed to extract image", file=sys.stderr)
+            else:
+                # Stream mode
+                # Try to extract from HTML first, fallback to PDF
+                if source.startswith('http') or Path(source).suffix.lower() in ['.html', '.htm']:
+                    img_stream = img_extractor.extract_image(source, tab_index)
+                else:
+                    # If source is not HTML, extract from PDF
+                    img_stream = img_extractor.extract_image(latest_pdf, tab_index)
+                
+                if img_stream:
+                    if verbose:
+                        print(f"  Image extracted to memory stream", file=sys.stderr)
+                        print(f"  Image size: {len(img_stream.getvalue())} bytes", file=sys.stderr)
+                else:
+                    if verbose:
+                        print("  Failed to extract image", file=sys.stderr)
+        
+        # Step 5: Display results - always output JSON by default
         output = {
             'typhoon_name': typhoon_name,
             'pdf_url': latest_pdf,
             'data': data
         }
-        print(json.dumps(output, indent=2))
+        
+        # Handle image output based on mode
+        if extract_image and stream_image and img_stream:
+            # Stream mode: output as [json_data, base64_image]
+            img_base64 = base64.b64encode(img_stream.getvalue()).decode('utf-8')
+            print(json.dumps([output, img_base64], indent=2))
+        elif extract_image and save_image_flag and img_path:
+            # Save mode: add image path to output
+            output['image_path'] = img_path
+            print(json.dumps(output, indent=2))
+        else:
+            # Normal mode: just output JSON
+            print(json.dumps(output, indent=2))
         
         # Performance metrics
         elapsed = time.time() - start_time
