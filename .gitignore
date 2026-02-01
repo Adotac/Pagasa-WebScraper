@@ -4,6 +4,9 @@ bin/pagasa_parser_src/
 dataset/
 *.pyc
 
+# Image extraction output files (test artifacts)
+typhoon_track_*.png
+
 # Exceptions - DO track these folders
 !dataset/pdfs
 !dataset/psgc_csv
