@@ -126,10 +126,11 @@ class TyphoonImageExtractor:
         page_number: int = 0
     ) -> Optional[io.BytesIO]:
         """
-        Extract typhoon track image from PDF using precise coordinates.
+        Extract typhoon track image from PDF using table-based detection.
         
         The typhoon track image is always on the first page (page 0),
-        located on the right side of the page, typically the largest image.
+        located on the right side of the main table, below the first row/header.
+        It's guaranteed to be within the table structure on the right side.
         
         Args:
             pdf_path: Path to PDF file
@@ -150,40 +151,89 @@ class TyphoonImageExtractor:
                     print(f"Error: No images found on page {page_number}")
                     return None
                 
-                # Find the largest image (likely the typhoon track map)
-                # Typhoon track images are typically on the right side and larger
-                largest_image = None
-                max_area = 0
+                # Try to find the main table on the page
+                tables = page.find_tables()
+                main_table_bbox = None
+                
+                if tables:
+                    # Find the largest table (likely the main data table)
+                    max_table_area = 0
+                    for table in tables:
+                        bbox = table.bbox
+                        area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+                        if area > max_table_area:
+                            max_table_area = area
+                            main_table_bbox = bbox
+                
+                # Find the typhoon track image
+                # Strategy: Look for the largest image that is:
+                # 1. On the right side of the page (x_center > page_width/2)
+                # 2. Within the table bounds (if table detected) OR below header area
+                # 3. Has significant size (area > 10000 square units)
+                
+                best_image = None
+                max_score = 0
                 
                 for img_info in page.images:
-                    # Calculate image area
                     width = img_info['x1'] - img_info['x0']
                     height = img_info['y1'] - img_info['y0']
                     area = width * height
                     
-                    # The typhoon track is typically on the right side (x > page.width/2)
-                    # and is one of the larger images
-                    if img_info['x0'] > page.width / 3 and area > max_area:
-                        max_area = area
-                        largest_image = img_info
+                    # Calculate center position
+                    x_center = (img_info['x0'] + img_info['x1']) / 2
+                    y_center = (img_info['y0'] + img_info['y1']) / 2
+                    
+                    # Must be on right side of page
+                    if x_center <= page.width / 2:
+                        continue
+                    
+                    # Must have reasonable size (not a small logo/icon)
+                    if area < 5000:  # Skip small images
+                        continue
+                    
+                    # Calculate score based on:
+                    # - Position (prefer images in middle-right area)
+                    # - Size (prefer larger images)
+                    # - Table alignment (prefer images within table if detected)
+                    
+                    score = area  # Base score on area
+                    
+                    # Bonus if within detected table
+                    if main_table_bbox:
+                        in_table_x = img_info['x0'] >= main_table_bbox[0] and img_info['x1'] <= main_table_bbox[2]
+                        in_table_y = img_info['y0'] >= main_table_bbox[1] and img_info['y1'] <= main_table_bbox[3]
+                        if in_table_x and in_table_y:
+                            score *= 1.5  # 50% bonus for being in table
+                    
+                    # Bonus for being in the expected vertical range
+                    # (not at very top or very bottom of page)
+                    top_distance = page.height - img_info['y1']
+                    if 100 < top_distance < 600:  # Between 100-600px from top
+                        score *= 1.2  # 20% bonus
+                    
+                    if score > max_score:
+                        max_score = score
+                        best_image = img_info
                 
-                if not largest_image:
-                    # Fallback: just use the largest image overall
+                if not best_image:
+                    # Fallback: use the largest image on the right side
+                    max_area = 0
                     for img_info in page.images:
                         width = img_info['x1'] - img_info['x0']
                         height = img_info['y1'] - img_info['y0']
                         area = width * height
-                        if area > max_area:
+                        x_center = (img_info['x0'] + img_info['x1']) / 2
+                        
+                        if x_center > page.width / 2 and area > max_area:
                             max_area = area
-                            largest_image = img_info
+                            best_image = img_info
                 
-                if not largest_image:
+                if not best_image:
                     print("Error: Could not identify typhoon track image")
                     return None
                 
                 # Extract the image using coordinates
-                # Crop the page to the image bounds
-                x0, y0, x1, y1 = largest_image['x0'], largest_image['y0'], largest_image['x1'], largest_image['y1']
+                x0, y0, x1, y1 = best_image['x0'], best_image['y0'], best_image['x1'], best_image['y1']
                 
                 # Use pdfplumber's crop and convert to image
                 cropped_page = page.crop((x0, y0, x1, y1))
