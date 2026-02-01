@@ -11,7 +11,6 @@ right side of the table containing typhoon location, intensity, and movement dat
 """
 
 import io
-import re
 import requests
 from pathlib import Path
 from typing import Optional, Tuple, Union
