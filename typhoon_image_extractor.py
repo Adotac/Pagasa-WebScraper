@@ -188,12 +188,9 @@ class TyphoonImageExtractor:
                         # Define the crop region for the track map
                         # It should be on the right side, at the same Y-level as the data
                         
-                        # Y coordinates: from bottom of header/first row to just before the forecast heading
-                        # Top boundary: use header bottom if found, otherwise fallback
-                        if header_bottom_y:
-                            y_top = header_bottom_y
-                        else:
-                            y_top = min(location_y, intensity_y if intensity_y else location_y) - 20
+                        # Y coordinates: Use Location cell's top as the top boundary
+                        # This ensures we start right at the Location row, excluding the header
+                        y_top = location_y
                         
                         # Bottom boundary: stop at the "TRACK AND INTENSITY FORECAST" heading
                         if forecast_heading_y:
@@ -202,13 +199,33 @@ class TyphoonImageExtractor:
                             # Fallback if heading not found
                             y_bottom = max(movement_y, intensity_y if intensity_y else movement_y) + 80
                         
-                        # X coordinates: right half of the page
-                        x_left = page.width * 0.50  # Start at 50% of page width
+                        # X coordinates: Start from the right side of the Location/Intensity/Movement cells
+                        # Find the rightmost edge of these text cells to exclude them from the image
+                        location_word = next((w for w in words if 'Location' in w['text']), None)
+                        intensity_word = next((w for w in words if 'Intensity' in w['text']), None)
+                        movement_word = next((w for w in words if 'Movement' in w['text']), None)
+                        
+                        # Get the rightmost x coordinate of these cells
+                        cell_right_edges = []
+                        if location_word:
+                            cell_right_edges.append(location_word['x1'])
+                        if intensity_word:
+                            cell_right_edges.append(intensity_word['x1'])
+                        if movement_word:
+                            cell_right_edges.append(movement_word['x1'])
+                        
+                        if cell_right_edges:
+                            # Start from the right edge of the cells, with a small margin
+                            x_left = max(cell_right_edges) + 10
+                        else:
+                            # Fallback: use middle of page
+                            x_left = page.width * 0.50
+                        
                         x_right = page.width - 40   # Leave small margin on right
                         
-                        # Crop and convert to image
+                        # Crop and convert to image at higher resolution for clarity
                         cropped_region = page.crop((x_left, y_top, x_right, y_bottom))
-                        pil_image = cropped_region.to_image(resolution=150)
+                        pil_image = cropped_region.to_image(resolution=300)
                         
                         # Save to BytesIO
                         img_bytes = io.BytesIO()
