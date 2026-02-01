@@ -476,9 +476,10 @@ def main():
             if verbose:
                 print(f"    Latest bulletin: {latest_pdf}", file=sys.stderr)
             
-            # Step 3: Analyze the PDF and fetch advisory data in parallel (only for first typhoon to avoid duplicate advisory fetches)
+            # Step 3: Analyze the PDF and fetch advisory data in parallel
+            # (only for first typhoon to avoid duplicate advisory fetches)
             if verbose:
-                print(f"    Analyzing PDF{'and fetching advisory data' if idx == 1 else ''}...", file=sys.stderr)
+                print(f"    Analyzing PDF{' and fetching advisory data' if idx == 1 else ''}...", file=sys.stderr)
             
             # Only fetch advisory data once for the first typhoon (it's the same for all typhoons)
             if idx == 1:
