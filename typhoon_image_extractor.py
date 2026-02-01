@@ -159,6 +159,7 @@ class TyphoonImageExtractor:
                     movement_y = None
                     
                     # Find the key text positions
+                    header_bottom_y = None
                     for word in words:
                         if 'Location' in word['text'] and word['x0'] < 100:
                             location_y = word['top']
@@ -166,6 +167,11 @@ class TyphoonImageExtractor:
                             intensity_y = word['top']
                         elif 'Movement' in word['text'] and word['x0'] < 150:
                             movement_y = word['top']
+                        
+                        # Track header/first row bottom - text in the top 150 pixels
+                        if word['top'] < 150:
+                            if header_bottom_y is None or word['bottom'] > header_bottom_y:
+                                header_bottom_y = word['bottom']
                     
                     # Find the "TRACK AND INTENSITY FORECAST" heading to use as bottom boundary
                     forecast_heading_y = None
@@ -182,8 +188,12 @@ class TyphoonImageExtractor:
                         # Define the crop region for the track map
                         # It should be on the right side, at the same Y-level as the data
                         
-                        # Y coordinates: from slightly above Location to just before the forecast heading
-                        y_top = min(location_y, intensity_y if intensity_y else location_y) - 20
+                        # Y coordinates: from bottom of header/first row to just before the forecast heading
+                        # Top boundary: use header bottom if found, otherwise fallback
+                        if header_bottom_y:
+                            y_top = header_bottom_y
+                        else:
+                            y_top = min(location_y, intensity_y if intensity_y else location_y) - 20
                         
                         # Bottom boundary: stop at the "TRACK AND INTENSITY FORECAST" heading
                         if forecast_heading_y:
