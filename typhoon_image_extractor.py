@@ -126,11 +126,13 @@ class TyphoonImageExtractor:
         page_number: int = 0
     ) -> Optional[io.BytesIO]:
         """
-        Extract typhoon track image from PDF using table-based detection.
+        Extract typhoon track image from PDF by cropping the region adjacent to
+        Location/Intensity/Movement data.
         
-        The typhoon track image is always on the first page (page 0),
-        located on the right side of the main table, below the first row/header.
-        It's guaranteed to be within the table structure on the right side.
+        The typhoon track map is on the first page, on the RIGHT SIDE at the same
+        vertical level as the "Location", "Intensity", and "Movement" text fields.
+        Since it's not always embedded as a separate image object, we crop that
+        region of the page and render it as an image.
         
         Args:
             pdf_path: Path to PDF file
@@ -147,126 +149,119 @@ class TyphoonImageExtractor:
                 
                 page = pdf.pages[page_number]
                 
-                if not page.images:
-                    print(f"Error: No images found on page {page_number}")
-                    return None
+                # Strategy: Find the Location/Intensity/Movement text section
+                # and crop the adjacent right-side area to capture the track map
                 
-                # Try to find the main table on the page
-                tables = page.find_tables()
-                main_table_bbox = None
-                
-                if tables:
-                    # Find the largest table (likely the main data table)
-                    max_table_area = 0
-                    for table in tables:
-                        bbox = table.bbox
-                        area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-                        if area > max_table_area:
-                            max_table_area = area
-                            main_table_bbox = bbox
-                
-                # Find the typhoon track image
-                # Strategy: Look for an image that is:
-                # 1. On the right side of the page (x_center > page_width/2)
-                # 2. Does NOT contain forecast table text
-                # 3. Has significant size (area > 10000 square units)
-                # 4. Is adjacent to the Location/Intensity/Movement text section
-                
-                best_image = None
-                max_score = 0
-                
-                for img_info in page.images:
-                    width = img_info['x1'] - img_info['x0']
-                    height = img_info['y1'] - img_info['y0']
-                    area = width * height
+                try:
+                    words = page.extract_words()
+                    location_y = None
+                    intensity_y = None
+                    movement_y = None
                     
-                    # Calculate center position
-                    x_center = (img_info['x0'] + img_info['x1']) / 2
-                    y_center = (img_info['y0'] + img_info['y1']) / 2
+                    # Find the key text positions
+                    for word in words:
+                        if 'Location' in word['text'] and word['x0'] < 100:
+                            location_y = word['top']
+                        elif word['text'] == 'Intensity' and word['x0'] < 100:
+                            intensity_y = word['top']
+                        elif 'Movement' in word['text'] and word['x0'] < 150:
+                            movement_y = word['top']
                     
-                    # Must be on right side of page
-                    if x_center <= page.width / 2:
-                        continue
-                    
-                    # Must have reasonable size (not a small logo/icon)
-                    if area < 10000:  # Skip small images
-                        continue
-                    
-                    # Check if this image contains forecast table text
-                    # If it does, it's the forecast table, not the track map
-                    try:
-                        cropped_area = page.crop((img_info['x0'], img_info['y0'], 
-                                                 img_info['x1'], img_info['y1']))
-                        img_text = cropped_area.extract_text() or ""
+                    if location_y and movement_y:
+                        # Define the crop region for the track map
+                        # It should be on the right side, at the same Y-level as the data
                         
-                        # Skip if image contains forecast table keywords or patterns
-                        # Forecast tables typically contain location names with coordinates
-                        forecast_indicators = ['Legazpi', 'Daet', 'Baler', 'Kapangan', 'Bacnotan', 
-                                              'TY WNW', 'STY', 'STS', 'PAR)', 'Batanes']
+                        # Y coordinates: from slightly above Location to slightly below Movement
+                        y_top = min(location_y, intensity_y if intensity_y else location_y) - 20
+                        y_bottom = max(movement_y, intensity_y if intensity_y else movement_y) + 180
                         
-                        # Count how many forecast indicators are present
-                        indicator_count = sum(1 for indicator in forecast_indicators if indicator in img_text)
+                        # X coordinates: right half of the page
+                        x_left = page.width * 0.50  # Start at 50% of page width
+                        x_right = page.width - 40   # Leave small margin on right
                         
-                        # If image contains multiple forecast indicators, it's likely the forecast table
-                        if indicator_count >= 3:
-                            continue
-                    except:
-                        pass
+                        # Crop and convert to image
+                        cropped_region = page.crop((x_left, y_top, x_right, y_bottom))
+                        pil_image = cropped_region.to_image(resolution=150)
+                        
+                        # Save to BytesIO
+                        img_bytes = io.BytesIO()
+                        pil_image.save(img_bytes, format='PNG')
+                        img_bytes.seek(0)
+                        
+                        return img_bytes
                     
-                    # Calculate score based on position and size
-                    score = area  # Base score on area
-                    
-                    # Bonus for being in the upper-middle vertical range (typical track map position)
-                    top_distance = page.height - img_info['y1']
-                    if 150 < top_distance < 400:
-                        score *= 2.0  # Strong preference for this range
-                    elif 100 < top_distance < 500:
-                        score *= 1.5
-                    
-                    # Bonus if within detected table (but not if it's too large/composite)
-                    if main_table_bbox and area < 50000:
-                        in_table_x = img_info['x0'] >= main_table_bbox[0] and img_info['x1'] <= main_table_bbox[2]
-                        in_table_y = img_info['y0'] >= main_table_bbox[1] and img_info['y1'] <= main_table_bbox[3]
-                        if in_table_x and in_table_y:
-                            score *= 1.3
-                    
-                    if score > max_score:
-                        max_score = score
-                        best_image = img_info
+                except Exception as e:
+                    print(f"Error using text-based positioning: {e}")
                 
-                if not best_image:
-                    # Fallback: use the largest image on the right side
-                    max_area = 0
+                # Fallback: Try to extract from embedded images if text-based approach fails
+                if page.images:
+                    # Look for images that might be the track map
+                    best_image = None
+                    max_score = 0
+                    
                     for img_info in page.images:
                         width = img_info['x1'] - img_info['x0']
                         height = img_info['y1'] - img_info['y0']
                         area = width * height
                         x_center = (img_info['x0'] + img_info['x1']) / 2
                         
-                        if x_center > page.width / 2 and area > max_area:
-                            max_area = area
+                        # Must be on right side
+                        if x_center <= page.width / 2:
+                            continue
+                        
+                        # Must be reasonably sized
+                        if area < 10000:
+                            continue
+                        
+                        # Check if image contains forecast table text
+                        try:
+                            cropped_area = page.crop((img_info['x0'], img_info['y0'], 
+                                                     img_info['x1'], img_info['y1']))
+                            img_text = cropped_area.extract_text() or ""
+                            
+                            # Skip forecast table images
+                            forecast_indicators = ['Legazpi', 'Daet', 'Baler', 'Kapangan', 'Bacnotan', 
+                                                  'TY WNW', 'STY', 'STS', 'PAR)', 'Batanes']
+                            indicator_count = sum(1 for indicator in forecast_indicators if indicator in img_text)
+                            
+                            if indicator_count >= 3:
+                                continue
+                        except:
+                            pass
+                        
+                        # Score based on position and size
+                        score = area
+                        
+                        # Prefer images in upper-middle vertical range
+                        from_top = page.height - img_info['y1']
+                        if 150 < from_top < 400:
+                            score *= 2.0
+                        elif 100 < from_top < 500:
+                            score *= 1.5
+                        
+                        if score > max_score:
+                            max_score = score
                             best_image = img_info
+                    
+                    if best_image:
+                        # Extract the image
+                        x0, y0, x1, y1 = best_image['x0'], best_image['y0'], best_image['x1'], best_image['y1']
+                        cropped_page = page.crop((x0, y0, x1, y1))
+                        pil_image = cropped_page.to_image(resolution=150)
+                        
+                        img_bytes = io.BytesIO()
+                        pil_image.save(img_bytes, format='PNG')
+                        img_bytes.seek(0)
+                        
+                        return img_bytes
                 
-                if not best_image:
-                    print("Error: Could not identify typhoon track image")
-                    return None
+                print("Error: Could not identify typhoon track image region")
+                return None
                 
-                # Extract the image using coordinates
-                x0, y0, x1, y1 = best_image['x0'], best_image['y0'], best_image['x1'], best_image['y1']
-                
-                # Use pdfplumber's crop and convert to image
-                cropped_page = page.crop((x0, y0, x1, y1))
-                
-                # Convert to PIL Image
-                pil_image = cropped_page.to_image(resolution=150)
-                
-                # Save to BytesIO
-                img_bytes = io.BytesIO()
-                pil_image.save(img_bytes, format='PNG')
-                img_bytes.seek(0)
-                
-                return img_bytes
-                
+        except Exception as e:
+            print(f"Error extracting image from PDF: {e}")
+            return None
+    
         except Exception as e:
             print(f"Error extracting image from PDF: {e}")
             import traceback
