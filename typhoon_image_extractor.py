@@ -166,10 +166,11 @@ class TyphoonImageExtractor:
                             main_table_bbox = bbox
                 
                 # Find the typhoon track image
-                # Strategy: Look for the largest image that is:
+                # Strategy: Look for an image that is:
                 # 1. On the right side of the page (x_center > page_width/2)
-                # 2. Within the table bounds (if table detected) OR below header area
+                # 2. Does NOT contain forecast table text
                 # 3. Has significant size (area > 10000 square units)
+                # 4. Is adjacent to the Location/Intensity/Movement text section
                 
                 best_image = None
                 max_score = 0
@@ -188,28 +189,46 @@ class TyphoonImageExtractor:
                         continue
                     
                     # Must have reasonable size (not a small logo/icon)
-                    if area < 5000:  # Skip small images
+                    if area < 10000:  # Skip small images
                         continue
                     
-                    # Calculate score based on:
-                    # - Position (prefer images in middle-right area)
-                    # - Size (prefer larger images)
-                    # - Table alignment (prefer images within table if detected)
+                    # Check if this image contains forecast table text
+                    # If it does, it's the forecast table, not the track map
+                    try:
+                        cropped_area = page.crop((img_info['x0'], img_info['y0'], 
+                                                 img_info['x1'], img_info['y1']))
+                        img_text = cropped_area.extract_text() or ""
+                        
+                        # Skip if image contains forecast table keywords or patterns
+                        # Forecast tables typically contain location names with coordinates
+                        forecast_indicators = ['Legazpi', 'Daet', 'Baler', 'Kapangan', 'Bacnotan', 
+                                              'TY WNW', 'STY', 'STS', 'PAR)', 'Batanes']
+                        
+                        # Count how many forecast indicators are present
+                        indicator_count = sum(1 for indicator in forecast_indicators if indicator in img_text)
+                        
+                        # If image contains multiple forecast indicators, it's likely the forecast table
+                        if indicator_count >= 3:
+                            continue
+                    except:
+                        pass
                     
+                    # Calculate score based on position and size
                     score = area  # Base score on area
                     
-                    # Bonus if within detected table
-                    if main_table_bbox:
+                    # Bonus for being in the upper-middle vertical range (typical track map position)
+                    top_distance = page.height - img_info['y1']
+                    if 150 < top_distance < 400:
+                        score *= 2.0  # Strong preference for this range
+                    elif 100 < top_distance < 500:
+                        score *= 1.5
+                    
+                    # Bonus if within detected table (but not if it's too large/composite)
+                    if main_table_bbox and area < 50000:
                         in_table_x = img_info['x0'] >= main_table_bbox[0] and img_info['x1'] <= main_table_bbox[2]
                         in_table_y = img_info['y0'] >= main_table_bbox[1] and img_info['y1'] <= main_table_bbox[3]
                         if in_table_x and in_table_y:
-                            score *= 1.5  # 50% bonus for being in table
-                    
-                    # Bonus for being in the expected vertical range
-                    # (not at very top or very bottom of page)
-                    top_distance = page.height - img_info['y1']
-                    if 100 < top_distance < 600:  # Between 100-600px from top
-                        score *= 1.2  # 20% bonus
+                            score *= 1.3
                     
                     if score > max_score:
                         max_score = score
