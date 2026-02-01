@@ -167,13 +167,30 @@ class TyphoonImageExtractor:
                         elif 'Movement' in word['text'] and word['x0'] < 150:
                             movement_y = word['top']
                     
+                    # Find the "TRACK AND INTENSITY FORECAST" heading to use as bottom boundary
+                    forecast_heading_y = None
+                    for word in words:
+                        if word['text'] == 'TRACK':
+                            # Check if this is part of the forecast heading
+                            nearby_words = [w for w in words if abs(w['top'] - word['top']) < 5]
+                            nearby_text = ' '.join([w['text'] for w in sorted(nearby_words, key=lambda x: x['x0'])])
+                            if 'INTENSITY' in nearby_text and 'FORECAST' in nearby_text:
+                                forecast_heading_y = word['top']
+                                break
+                    
                     if location_y and movement_y:
                         # Define the crop region for the track map
                         # It should be on the right side, at the same Y-level as the data
                         
-                        # Y coordinates: from slightly above Location to slightly below Movement
+                        # Y coordinates: from slightly above Location to just before the forecast heading
                         y_top = min(location_y, intensity_y if intensity_y else location_y) - 20
-                        y_bottom = max(movement_y, intensity_y if intensity_y else movement_y) + 180
+                        
+                        # Bottom boundary: stop at the "TRACK AND INTENSITY FORECAST" heading
+                        if forecast_heading_y:
+                            y_bottom = forecast_heading_y - 5  # Stop 5px before the heading
+                        else:
+                            # Fallback if heading not found
+                            y_bottom = max(movement_y, intensity_y if intensity_y else movement_y) + 80
                         
                         # X coordinates: right half of the page
                         x_left = page.width * 0.50  # Start at 50% of page width
