@@ -199,24 +199,30 @@ class TyphoonImageExtractor:
                             # Fallback if heading not found
                             y_bottom = max(movement_y, intensity_y if intensity_y else movement_y) + 80
                         
-                        # X coordinates: Start from the right side of the Location/Intensity/Movement cells
-                        # Find the rightmost edge of these text cells to exclude them from the image
-                        location_word = next((w for w in words if 'Location' in w['text']), None)
-                        intensity_word = next((w for w in words if 'Intensity' in w['text']), None)
-                        movement_word = next((w for w in words if 'Movement' in w['text']), None)
+                        # X coordinates: Start from the right side of the DATA cells (not the labels)
+                        # The user specified to use the Location table cell's top-right corner as reference
+                        # This means we need to find the actual DATA values (coordinates, speeds, etc.)
+                        # in the Location/Intensity/Movement section and use their rightmost edge
                         
-                        # Get the rightmost x coordinate of these cells
-                        cell_right_edges = []
-                        if location_word:
-                            cell_right_edges.append(location_word['x1'])
-                        if intensity_word:
-                            cell_right_edges.append(intensity_word['x1'])
-                        if movement_word:
-                            cell_right_edges.append(movement_word['x1'])
+                        # Define the Y range where the data is (from Location to Movement rows)
+                        y_min = location_y - 5
+                        y_max = movement_y + 50
                         
-                        if cell_right_edges:
-                            # Start from the right edge of the cells, with a small margin
-                            x_left = max(cell_right_edges) + 10
+                        # Find all words in this Y range that are DATA (not labels)
+                        data_words = []
+                        for word in words:
+                            if y_min <= word['top'] <= y_max:
+                                # Skip the label words themselves
+                                if word['text'] not in ['Location', 'Intensity', 'Movement']:
+                                    # Only include substantial words (not punctuation)
+                                    if len(word['text']) > 1:
+                                        data_words.append(word)
+                        
+                        if data_words:
+                            # Find the rightmost data value
+                            rightmost_data_x = max(w['x1'] for w in data_words)
+                            # Start from the right edge of the data cells, with a small margin
+                            x_left = rightmost_data_x + 10
                         else:
                             # Fallback: use middle of page
                             x_left = page.width * 0.50
