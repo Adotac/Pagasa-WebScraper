@@ -58,11 +58,6 @@ This directory contains comprehensive documentation for the PAGASA WebScraper pr
   - Supported formats and methods
   - Integration with main pipeline
 
-- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Implementation overview
-  - High-level architecture
-  - Component descriptions
-  - Development history
-
 ## Quick Start
 
 ### For End Users
@@ -71,9 +66,9 @@ This directory contains comprehensive documentation for the PAGASA WebScraper pr
 3. **Visual learner?** → Browse [GUI_VISUAL_DOCUMENTATION_2025.md](GUI_VISUAL_DOCUMENTATION_2025.md)
 
 ### For Developers
-1. **Understanding the system?** → Read [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)
-2. **Integrating components?** → Check [INTEGRATION_NOTES.md](INTEGRATION_NOTES.md)
-3. **Working with PDFs?** → See [PDF_STRUCTURE_ANALYSIS.md](PDF_STRUCTURE_ANALYSIS.md)
+1. **Integrating components?** → Check [INTEGRATION_NOTES.md](INTEGRATION_NOTES.md)
+2. **Working with PDFs?** → See [PDF_STRUCTURE_ANALYSIS.md](PDF_STRUCTURE_ANALYSIS.md)
+3. **Extracting images?** → Read [IMAGE_EXTRACTION_GUIDE.md](IMAGE_EXTRACTION_GUIDE.md)
 4. **GUI development?** → Review [PDF_ANNOTATION_IMPLEMENTATION.md](PDF_ANNOTATION_IMPLEMENTATION.md)
 
 ## Related Resources

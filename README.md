@@ -461,7 +461,6 @@ The project includes comprehensive documentation:
 | [docs/PORTABILITY.md](docs/PORTABILITY.md) | Platform compatibility and deployment guide |
 | [docs/PDF_STRUCTURE_ANALYSIS.md](docs/PDF_STRUCTURE_ANALYSIS.md) | Technical analysis of PAGASA PDF bulletin structure |
 | [docs/IMAGE_EXTRACTION_GUIDE.md](docs/IMAGE_EXTRACTION_GUIDE.md) | Guide for extracting typhoon track images |
-| [docs/IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md) | High-level implementation overview |
 
 ### PDF Annotation GUI Documentation
 Complete GUI documentation in [docs/](docs/) folder:
@@ -514,7 +513,6 @@ docs/                                # 📂 Documentation folder
 ├── PORTABILITY.md                   # Platform compatibility guide
 ├── PDF_STRUCTURE_ANALYSIS.md        # PDF structure reference
 ├── IMAGE_EXTRACTION_GUIDE.md        # Image extraction guide
-├── IMPLEMENTATION_SUMMARY.md        # Implementation overview
 └── [GUI documentation files...]     # PDF annotation GUI docs
 
 examples/                            # 📂 Example scripts folder
