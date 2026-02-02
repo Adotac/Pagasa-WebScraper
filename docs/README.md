@@ -1,11 +1,12 @@
-# PDF Annotation GUI Documentation
+# Documentation
 
-This directory contains comprehensive documentation for the PAGASA PDF Annotation GUI tool.
+This directory contains comprehensive documentation for the PAGASA WebScraper project.
 
-## Documentation Files
+## Documentation Overview
 
-### 📖 User Documentation
+### 📋 PDF Annotation GUI Documentation
 
+#### User Documentation
 - **[PDF_ANNOTATION_GUI_README.md](PDF_ANNOTATION_GUI_README.md)** - Complete user guide
   - Features and capabilities
   - Installation instructions
@@ -19,8 +20,7 @@ This directory contains comprehensive documentation for the PAGASA PDF Annotatio
   - File locations
   - Status indicators
 
-### 🎨 Visual Reference
-
+#### Visual Reference
 - **[GUI_VISUAL_DOCUMENTATION_2025.md](GUI_VISUAL_DOCUMENTATION_2025.md)** - Complete visual guide
   - Interface layout diagrams
   - Color schemes and styling
@@ -28,8 +28,7 @@ This directory contains comprehensive documentation for the PAGASA PDF Annotatio
   - State machines and workflows
   - Progress indicators
 
-### 🛠️ Technical Documentation
-
+#### Technical Documentation
 - **[PDF_ANNOTATION_IMPLEMENTATION.md](PDF_ANNOTATION_IMPLEMENTATION.md)** - Implementation details
   - Architecture overview
   - Technical specifications
@@ -37,20 +36,50 @@ This directory contains comprehensive documentation for the PAGASA PDF Annotatio
   - Integration points
   - Testing recommendations
 
+### 🔧 Project Documentation
+
+- **[INTEGRATION_NOTES.md](INTEGRATION_NOTES.md)** - Integration guide
+  - How main.py, advisory_scraper.py, and other components work together
+  - API integration patterns
+  - Data flow documentation
+
+- **[PORTABILITY.md](PORTABILITY.md)** - Platform compatibility guide
+  - Cross-platform considerations
+  - Dependency management
+  - Installation on different operating systems
+
+- **[PDF_STRUCTURE_ANALYSIS.md](PDF_STRUCTURE_ANALYSIS.md)** - PAGASA bulletin PDF structure reference
+  - PDF format documentation
+  - Data extraction patterns
+  - Parsing strategies
+
+- **[IMAGE_EXTRACTION_GUIDE.md](IMAGE_EXTRACTION_GUIDE.md)** - Image extraction documentation
+  - How to extract typhoon track images
+  - Supported formats and methods
+  - Integration with main pipeline
+
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Implementation overview
+  - High-level architecture
+  - Component descriptions
+  - Development history
+
 ## Quick Start
 
+### For End Users
 1. **First time user?** → Start with [PDF_ANNOTATION_GUI_README.md](PDF_ANNOTATION_GUI_README.md)
 2. **Need quick reference?** → Check [PDF_ANNOTATION_QUICKREF.md](PDF_ANNOTATION_QUICKREF.md)
 3. **Visual learner?** → Browse [GUI_VISUAL_DOCUMENTATION_2025.md](GUI_VISUAL_DOCUMENTATION_2025.md)
-4. **Developer?** → Read [PDF_ANNOTATION_IMPLEMENTATION.md](PDF_ANNOTATION_IMPLEMENTATION.md)
 
-## Related Documentation
+### For Developers
+1. **Understanding the system?** → Read [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)
+2. **Integrating components?** → Check [INTEGRATION_NOTES.md](INTEGRATION_NOTES.md)
+3. **Working with PDFs?** → See [PDF_STRUCTURE_ANALYSIS.md](PDF_STRUCTURE_ANALYSIS.md)
+4. **GUI development?** → Review [PDF_ANNOTATION_IMPLEMENTATION.md](PDF_ANNOTATION_IMPLEMENTATION.md)
 
-Other project documentation (located in root directory):
-- **[../README.md](../README.md)** - Main project documentation
-- **[../INTEGRATION_NOTES.md](../INTEGRATION_NOTES.md)** - Integration with main.py and advisory_scraper.py
-- **[../PORTABILITY.md](../PORTABILITY.md)** - Platform compatibility guide
-- **[../PDF_STRUCTURE_ANALYSIS.md](../PDF_STRUCTURE_ANALYSIS.md)** - PAGASA bulletin PDF structure reference
+## Related Resources
+
+- **[../README.md](../README.md)** - Main project README
+- **[../examples/](../examples/)** - Example scripts and usage demonstrations
 
 ## Getting Help
 

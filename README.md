@@ -457,9 +457,11 @@ The project includes comprehensive documentation:
 | Document | Purpose |
 |----------|---------|
 | [README.md](README.md) | Main project documentation (this file) |
-| [INTEGRATION_NOTES.md](INTEGRATION_NOTES.md) | Advisory scraper integration and parallel execution |
-| [PORTABILITY.md](PORTABILITY.md) | Platform compatibility and deployment guide |
-| [PDF_STRUCTURE_ANALYSIS.md](PDF_STRUCTURE_ANALYSIS.md) | Technical analysis of PAGASA PDF bulletin structure |
+| [docs/INTEGRATION_NOTES.md](docs/INTEGRATION_NOTES.md) | Advisory scraper integration and parallel execution |
+| [docs/PORTABILITY.md](docs/PORTABILITY.md) | Platform compatibility and deployment guide |
+| [docs/PDF_STRUCTURE_ANALYSIS.md](docs/PDF_STRUCTURE_ANALYSIS.md) | Technical analysis of PAGASA PDF bulletin structure |
+| [docs/IMAGE_EXTRACTION_GUIDE.md](docs/IMAGE_EXTRACTION_GUIDE.md) | Guide for extracting typhoon track images |
+| [docs/IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md) | High-level implementation overview |
 
 ### PDF Annotation GUI Documentation
 Complete GUI documentation in [docs/](docs/) folder:
@@ -471,6 +473,18 @@ Complete GUI documentation in [docs/](docs/) folder:
 | [docs/PDF_ANNOTATION_QUICKREF.md](docs/PDF_ANNOTATION_QUICKREF.md) | Quick reference card |
 | [docs/GUI_VISUAL_DOCUMENTATION_2025.md](docs/GUI_VISUAL_DOCUMENTATION_2025.md) | Visual reference with diagrams |
 | [docs/PDF_ANNOTATION_IMPLEMENTATION.md](docs/PDF_ANNOTATION_IMPLEMENTATION.md) | Technical implementation details |
+
+### Example Scripts
+Example scripts demonstrating usage are in the [examples/](examples/) folder:
+
+| Script | Purpose |
+|--------|---------|
+| [examples/example_advisory_usage.py](examples/example_advisory_usage.py) | Advisory scraper usage examples |
+| [examples/example_image_extraction.py](examples/example_image_extraction.py) | Typhoon track image extraction examples |
+| [examples/example_main_usage.py](examples/example_main_usage.py) | Main pipeline usage and integration patterns |
+| [examples/example_scraper_usage.py](examples/example_scraper_usage.py) | Bulletin scraper usage examples |
+
+See [examples/README.md](examples/README.md) for detailed usage instructions.
 
 ---
 
@@ -491,7 +505,24 @@ dataset/
 bin/
 ├── consolidated_locations.csv       # 43,761 location mappings
 ├── extracted_typhoon_data.json      # Batch extraction output
-└── PAGASA.html                      # Sample HTML from wayback machine
+└── PAGASA BULLETIN PAGE/
+    └── PAGASA.html                  # Sample HTML from wayback machine
+
+docs/                                # 📂 Documentation folder
+├── README.md                        # Documentation index
+├── INTEGRATION_NOTES.md             # Component integration guide
+├── PORTABILITY.md                   # Platform compatibility guide
+├── PDF_STRUCTURE_ANALYSIS.md        # PDF structure reference
+├── IMAGE_EXTRACTION_GUIDE.md        # Image extraction guide
+├── IMPLEMENTATION_SUMMARY.md        # Implementation overview
+└── [GUI documentation files...]     # PDF annotation GUI docs
+
+examples/                            # 📂 Example scripts folder
+├── README.md                        # Examples index
+├── example_advisory_usage.py        # Advisory scraper examples
+├── example_image_extraction.py      # Image extraction examples
+├── example_main_usage.py            # Main pipeline examples
+└── example_scraper_usage.py         # Bulletin scraper examples
 
 advisory_scraper.py                  # Weather advisory PDF scraper
 scrape_bulletin.py                   # Web scraper for bulletin page
