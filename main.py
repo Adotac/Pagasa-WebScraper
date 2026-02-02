@@ -5,33 +5,34 @@ Main script: Combines web scraping and PDF analysis for PAGASA bulletins.
 This script:
 1. Uses scrape_bulletin.py to detect typhoon names and extract PDF links
 2. Selects the latest PDF for each typhoon
-3. Analyzes the latest PDF using analyze_pdf.py functionality
+3. Analyzes the latest PDF for each typhoon using analyze_pdf.py functionality
+4. Returns data for ALL typhoons found in the bulletin page
 
 By default, outputs raw JSON data to stdout (for easy piping/parsing).
 Use --verbose flag to see progress messages (sent to stderr).
 
 Usage:
-    python main.py                      # Uses default bin/PAGASA.html, outputs JSON
-    python main.py <html_file_path>     # Uses specified HTML file, outputs JSON
-    python main.py <url>                # Scrapes from URL, outputs JSON
+    python main.py                      # Uses default bin/PAGASA.html, outputs JSON for all typhoons
+    python main.py <html_file_path>     # Uses specified HTML file, outputs JSON for all typhoons
+    python main.py <url>                # Scrapes from URL, outputs JSON for all typhoons
     python main.py --help               # Show help message
 
 Options:
     --verbose                           # Show progress messages (to stderr)
     --low-cpu                           # Limit CPU usage to ~30%
     --metrics                           # Show performance metrics (to stderr)
-    --extract-image                     # Extract typhoon track image (requires --stream or --save-image)
-    --stream                            # Return image as base64 stream with JSON (use with --extract-image)
-    --save-image                        # Save image to file (use with --extract-image)
+    --extract-image                     # Extract typhoon track images (requires --stream or --save-image)
+    --stream                            # Return images as base64 stream with JSON (use with --extract-image)
+    --save-image                        # Save images to files (use with --extract-image)
 
 Examples:
-    python main.py                                      # Pure JSON output
+    python main.py                                      # Pure JSON output for all typhoons
     python main.py --verbose                            # JSON + progress messages
     python main.py > output.json                        # Save JSON to file
     python main.py --verbose 2>/dev/null                # JSON only (suppress logs)
-    python main.py | jq '.data.typhoon_windspeed'       # Parse with jq
-    python main.py --extract-image --stream             # Extract image as base64 stream
-    python main.py --extract-image --save-image         # Extract and save image to file
+    python main.py | jq '.typhoons[0].data.typhoon_windspeed'  # Parse with jq
+    python main.py --extract-image --stream             # Extract images as base64 streams
+    python main.py --extract-image --save-image         # Extract and save images to files
 """
 
 import sys
@@ -454,111 +455,136 @@ def main():
             for name, pdfs in typhoons_data:
                 print(f"  - {name}: {len(pdfs)} bulletin(s)", file=sys.stderr)
         
-        # Step 2: Select the latest PDF from the first typhoon
+        # Step 2: Process all typhoons
         if verbose:
-            print("\n[STEP 2] Selecting latest bulletin...", file=sys.stderr)
+            print("\n[STEP 2] Processing all typhoons...", file=sys.stderr)
             print("-" * 80, file=sys.stderr)
         
-        # Use the first typhoon (most recent)
-        typhoon_name, pdf_urls = typhoons_data[0]
-        latest_pdf = get_latest_pdf(pdf_urls)
+        all_typhoon_results = []
         
-        if not latest_pdf:
+        for idx, (typhoon_name, pdf_urls) in enumerate(typhoons_data, 1):
             if verbose:
-                print(f"Error: No PDFs found for {typhoon_name}", file=sys.stderr)
+                print(f"\n  Processing Typhoon {idx}/{len(typhoons_data)}: {typhoon_name}", file=sys.stderr)
+            
+            latest_pdf = get_latest_pdf(pdf_urls)
+            
+            if not latest_pdf:
+                if verbose:
+                    print(f"    Warning: No PDFs found for {typhoon_name}, skipping...", file=sys.stderr)
+                continue
+            
+            if verbose:
+                print(f"    Latest bulletin: {latest_pdf}", file=sys.stderr)
+            
+            # Step 3: Analyze the PDF and fetch advisory data in parallel
+            # (only for first typhoon to avoid duplicate advisory fetches)
+            if verbose:
+                print(f"    Analyzing PDF{' and fetching advisory data' if idx == 1 else ''}...", file=sys.stderr)
+            
+            # Only fetch advisory data once for the first typhoon (it's the same for all typhoons)
+            if idx == 1:
+                data = analyze_pdf_and_advisory_parallel(latest_pdf, low_cpu_mode=low_cpu_mode, verbose=verbose)
+            else:
+                data = analyze_pdf(latest_pdf, low_cpu_mode=low_cpu_mode, verbose=verbose)
+                # Copy rainfall warnings from first typhoon if available
+                if all_typhoon_results and data:
+                    first_data = all_typhoon_results[0]['data']
+                    data['rainfall_warning_tags1'] = first_data.get('rainfall_warning_tags1', [])
+                    data['rainfall_warning_tags2'] = first_data.get('rainfall_warning_tags2', [])
+                    data['rainfall_warning_tags3'] = first_data.get('rainfall_warning_tags3', [])
+            
+            if not data:
+                if verbose:
+                    print(f"    Warning: Failed to extract data from PDF for {typhoon_name}, skipping...", file=sys.stderr)
+                continue
+            
+            if verbose:
+                print(f"    Successfully extracted data for {typhoon_name}", file=sys.stderr)
+            
+            all_typhoon_results.append({
+                'typhoon_name': typhoon_name,
+                'pdf_url': latest_pdf,
+                'data': data
+            })
+        
+        if not all_typhoon_results:
+            if verbose:
+                print("\nError: Failed to extract data from any typhoon PDFs", file=sys.stderr)
             sys.exit(1)
         
-        if verbose:
-            print(f"  Typhoon: {typhoon_name}", file=sys.stderr)
-            print(f"  Latest bulletin: {latest_pdf}", file=sys.stderr)
-        
-        # Step 3: Analyze the PDF and fetch advisory data in parallel
-        if verbose:
-            print("\n[STEP 3] Analyzing PDF and fetching advisory data (parallel)...", file=sys.stderr)
-            print("-" * 80, file=sys.stderr)
-        
-        data = analyze_pdf_and_advisory_parallel(latest_pdf, low_cpu_mode=low_cpu_mode, verbose=verbose)
-        
-        if not data:
-            if verbose:
-                print("Error: Failed to extract data from PDF", file=sys.stderr)
-            sys.exit(1)
-        
-        # Step 4: Extract image if requested (only for single PDF analysis in main.py)
-        img_stream = None
-        img_path = None
-        
+        # Step 4: Extract images if requested
         if extract_image:
             if verbose:
-                print("\n[STEP 4] Extracting typhoon track image...", file=sys.stderr)
+                print("\n[STEP 4] Extracting typhoon track images...", file=sys.stderr)
                 print("-" * 80, file=sys.stderr)
             
             img_extractor = TyphoonImageExtractor()
             
-            # Determine the tab index from the typhoon data
-            # For main.py, we're always processing the first typhoon (tab index 1)
-            tab_index = 1
-            
-            if save_image_flag:
-                # Generate filename based on typhoon name and datetime
-                safe_typhoon_name = typhoon_name.replace(' ', '_').replace('"', '')
-                datetime_str = data.get('updated_datetime', '').replace(':', '-').replace(' ', '_')
-                if not datetime_str:
-                    datetime_str = time.strftime('%Y%m%d_%H%M%S')
-                img_filename = f"typhoon_track_{safe_typhoon_name}_{datetime_str}.png"
-                img_path = str(Path.cwd() / img_filename)
+            for idx, typhoon_result in enumerate(all_typhoon_results, 1):
+                typhoon_name = typhoon_result['typhoon_name']
+                latest_pdf = typhoon_result['pdf_url']
+                data = typhoon_result['data']
                 
-                # Try to extract from HTML first, fallback to PDF
-                if source.startswith('http') or Path(source).suffix.lower() in ['.html', '.htm']:
-                    result = img_extractor.extract_image(source, tab_index, img_path)
-                else:
-                    # If source is not HTML, extract from PDF
-                    result = img_extractor.extract_image(latest_pdf, tab_index, img_path)
+                if verbose:
+                    print(f"\n  Extracting image for Typhoon {idx}/{len(all_typhoon_results)}: {typhoon_name}", file=sys.stderr)
                 
-                if result:
-                    img_stream, img_path = result
-                    if verbose:
-                        print(f"  Image saved to: {img_path}", file=sys.stderr)
-                        print(f"  Image size: {len(img_stream.getvalue())} bytes", file=sys.stderr)
-                else:
-                    if verbose:
-                        print("  Failed to extract image", file=sys.stderr)
-            else:
-                # Stream mode
-                # Try to extract from HTML first, fallback to PDF
-                if source.startswith('http') or Path(source).suffix.lower() in ['.html', '.htm']:
-                    img_stream = img_extractor.extract_image(source, tab_index)
-                else:
-                    # If source is not HTML, extract from PDF
-                    img_stream = img_extractor.extract_image(latest_pdf, tab_index)
+                # Determine the tab index (1-based indexing)
+                tab_index = idx
                 
-                if img_stream:
-                    if verbose:
-                        print(f"  Image extracted to memory stream", file=sys.stderr)
-                        print(f"  Image size: {len(img_stream.getvalue())} bytes", file=sys.stderr)
+                img_stream = None
+                img_path = None
+                
+                if save_image_flag:
+                    # Generate filename based on typhoon name and datetime
+                    safe_typhoon_name = typhoon_name.replace(' ', '_').replace('"', '')
+                    datetime_str = data.get('updated_datetime', '').replace(':', '-').replace(' ', '_')
+                    if not datetime_str:
+                        datetime_str = time.strftime('%Y%m%d_%H%M%S')
+                    img_filename = f"typhoon_track_{safe_typhoon_name}_{datetime_str}.png"
+                    img_path = str(Path.cwd() / img_filename)
+                    
+                    # Try to extract from HTML first, fallback to PDF
+                    if source.startswith('http') or Path(source).suffix.lower() in ['.html', '.htm']:
+                        result = img_extractor.extract_image(source, tab_index, img_path)
+                    else:
+                        # If source is not HTML, extract from PDF
+                        result = img_extractor.extract_image(latest_pdf, tab_index, img_path)
+                    
+                    if result:
+                        img_stream, img_path = result
+                        typhoon_result['image_path'] = img_path
+                        if verbose:
+                            print(f"    Image saved to: {img_path}", file=sys.stderr)
+                            print(f"    Image size: {len(img_stream.getvalue())} bytes", file=sys.stderr)
+                    else:
+                        if verbose:
+                            print(f"    Failed to extract image", file=sys.stderr)
                 else:
-                    if verbose:
-                        print("  Failed to extract image", file=sys.stderr)
+                    # Stream mode
+                    # Try to extract from HTML first, fallback to PDF
+                    if source.startswith('http') or Path(source).suffix.lower() in ['.html', '.htm']:
+                        img_stream = img_extractor.extract_image(source, tab_index)
+                    else:
+                        # If source is not HTML, extract from PDF
+                        img_stream = img_extractor.extract_image(latest_pdf, tab_index)
+                    
+                    if img_stream:
+                        typhoon_result['image_stream'] = base64.b64encode(img_stream.getvalue()).decode('utf-8')
+                        if verbose:
+                            print(f"    Image extracted to memory stream", file=sys.stderr)
+                            print(f"    Image size: {len(img_stream.getvalue())} bytes", file=sys.stderr)
+                    else:
+                        if verbose:
+                            print(f"    Failed to extract image", file=sys.stderr)
         
         # Step 5: Display results - always output JSON by default
         output = {
-            'typhoon_name': typhoon_name,
-            'pdf_url': latest_pdf,
-            'data': data
+            'total_typhoons': len(all_typhoon_results),
+            'typhoons': all_typhoon_results
         }
         
-        # Handle image output based on mode
-        if extract_image and stream_image and img_stream:
-            # Stream mode: output as [json_data, base64_image]
-            img_base64 = base64.b64encode(img_stream.getvalue()).decode('utf-8')
-            print(json.dumps([output, img_base64], indent=2))
-        elif extract_image and save_image_flag and img_path:
-            # Save mode: add image path to output
-            output['image_path'] = img_path
-            print(json.dumps(output, indent=2))
-        else:
-            # Normal mode: just output JSON
-            print(json.dumps(output, indent=2))
+        # Output the results
+        print(json.dumps(output, indent=2))
         
         # Performance metrics
         elapsed = time.time() - start_time
