@@ -3,7 +3,7 @@
 """
 Typhoon Image Extractor - Extract typhoon track images from HTML/URL or PDF.
 
-Copyright (c) 2026 JMontero
+Copyright (c) 2026 JMontero, Adotac
 Licensed under the MIT License. See LICENSE file in the project root for details.
 
 This module provides two methods for extracting typhoon track images:

@@ -2,7 +2,7 @@
 """
 PAGASA PDF Extraction Algorithm - High-Accuracy Extraction
 
-Copyright (c) 2026 JMontero
+Copyright (c) 2026 JMontero, Adotac
 Licensed under the MIT License. See LICENSE file in the project root for details.
 
 This module extracts typhoon bulletin data from PDFs using section-based

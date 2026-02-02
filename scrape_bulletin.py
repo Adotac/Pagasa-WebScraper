@@ -3,7 +3,7 @@
 """
 Web scraper for PAGASA Severe Weather Bulletin page.
 
-Copyright (c) 2026 JMontero
+Copyright (c) 2026 JMontero, Adotac
 Licensed under the MIT License. See LICENSE file in the project root for details.
 
 Extracts PDF links from the bulletin archive, organized by typhoon.

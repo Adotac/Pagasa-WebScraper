@@ -2,7 +2,7 @@
 """
 Dependency verification script for PAGASA WebScraper project.
 
-Copyright (c) 2026 JMontero
+Copyright (c) 2026 JMontero, Adotac
 Licensed under the MIT License. See LICENSE file in the project root for details.
 
 This script verifies that all required dependencies from requirements.txt

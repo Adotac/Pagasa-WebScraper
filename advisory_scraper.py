@@ -3,7 +3,7 @@
 """
 PAGASA Weather Advisory Extractor (Hybrid PDF/HTML)
 
-Copyright (c) 2026 JMontero
+Copyright (c) 2026 JMontero, Adotac
 Licensed under the MIT License. See LICENSE file in the project root for details.
 
 Extracts rainfall warning data from PAGASA weather advisory pages.
