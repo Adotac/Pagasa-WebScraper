@@ -1,6 +1,11 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Accuracy test script for PDF extraction analysis.
+
+Copyright (c) 2026 JMontero, Adotac
+Licensed under the MIT License. See LICENSE file in the project root for details.
+
 Compares extracted data from PDFs against ground truth annotations.
 Automatically finds corresponding PDF files for each annotation.
 

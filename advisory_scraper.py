@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 PAGASA Weather Advisory Extractor (Hybrid PDF/HTML)
+
+Copyright (c) 2026 JMontero, Adotac
+Licensed under the MIT License. See LICENSE file in the project root for details.
 
 Extracts rainfall warning data from PAGASA weather advisory pages.
 Attempts PDF extraction first (if PDF has text), falls back to HTML DOM parsing for scanned PDFs.

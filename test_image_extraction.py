@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Test script for typhoon image extraction functionality.
+
+Copyright (c) 2026 JMontero, Adotac
+Licensed under the MIT License. See LICENSE file in the project root for details.
 
 This script tests both extraction methods:
 1. Extract from HTML
