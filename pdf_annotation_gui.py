@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 PDF Annotation GUI for PAGASA Typhoon Bulletins
+
+Copyright (c) 2026 JMontero
+Licensed under the MIT License. See LICENSE file in the project root for details.
 
 A GUI tool for annotating PDFs with extracted JSON data from typhoon bulletins.
 Uses TyphoonBulletinExtractor to automatically extract data and allows manual editing

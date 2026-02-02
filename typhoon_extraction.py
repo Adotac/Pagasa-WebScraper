@@ -1,5 +1,9 @@
+# -*- coding: utf-8 -*-
 """
 PAGASA PDF Extraction Algorithm - High-Accuracy Extraction
+
+Copyright (c) 2026 JMontero
+Licensed under the MIT License. See LICENSE file in the project root for details.
 
 This module extracts typhoon bulletin data from PDFs using section-based
 parsing and structured table detection to achieve 99%+ accuracy.

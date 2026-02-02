@@ -1,6 +1,11 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Analyze a single PAGASA PDF bulletin and display extracted data in a readable format.
+
+Copyright (c) 2026 JMontero
+Licensed under the MIT License. See LICENSE file in the project root for details.
+
 Usage: python analyze_pdf.py "<path_to_pdf>"
        python analyze_pdf.py "<pdf_url>"
        python analyze_pdf.py --random

@@ -1,5 +1,7 @@
 # Pagasa WebScraper
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 High-accuracy PAGASA typhoon bulletin PDF extraction and annotation tool. Extracts signal warnings, rainfall alerts, typhoon location, movement, and wind speed with 94.2% accuracy.
 
 ## Quick Start
@@ -587,6 +589,20 @@ Comprehensive documentation is available in the `docs/` folder:
 - **[GUI_VISUAL_DOCUMENTATION_2025.md](docs/GUI_VISUAL_DOCUMENTATION_2025.md)** - Complete visual reference with interface layouts, color schemes, button specifications, state machines, and workflows
 - **[PDF_ANNOTATION_IMPLEMENTATION.md](docs/PDF_ANNOTATION_IMPLEMENTATION.md)** - Technical implementation details, code architecture, and metrics
 - **[PDF_STRUCTURE_ANALYSIS.md](docs/PDF_STRUCTURE_ANALYSIS.md)** - Detailed analysis of PAGASA bulletin PDF structure
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+The MIT License is a permissive free software license that allows for:
+- ✓ Commercial use
+- ✓ Modification
+- ✓ Distribution
+- ✓ Private use
+
+This means you are free to use, modify, and distribute this software for any purpose, including commercial projects, as long as you include the original copyright notice and license.
 
 ---
 

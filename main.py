@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Main script: Combines web scraping and PDF analysis for PAGASA bulletins.
+
+Copyright (c) 2026 JMontero
+Licensed under the MIT License. See LICENSE file in the project root for details.
 
 This script:
 1. Uses scrape_bulletin.py to detect typhoon names and extract PDF links

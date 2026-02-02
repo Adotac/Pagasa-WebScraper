@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Typhoon Image Extractor - Extract typhoon track images from HTML/URL or PDF.
+
+Copyright (c) 2026 JMontero
+Licensed under the MIT License. See LICENSE file in the project root for details.
 
 This module provides two methods for extracting typhoon track images:
 1. From live URL/HTML by locating the image element within tcwb-{number} sections
